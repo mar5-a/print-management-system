@@ -15,28 +15,37 @@ interface ActionRailProps {
 
 export function ActionRail({ title, items }: ActionRailProps) {
   return (
-    <aside className="ui-panel h-fit min-w-0">
-      <div className="border-b border-line bg-mist-50 px-4 py-3">
-        <div className="ui-kicker">Actions</div>
-        <div className="mt-1 text-sm font-semibold text-ink-950">{title}</div>
+    <section className="ui-panel mb-5 overflow-hidden">
+      <div className="border-b border-line bg-accent-100/35 px-5 py-4">
+        <div className="ui-kicker text-accent-700">Actions</div>
+        <div className="mt-1 text-base font-semibold text-ink-950">{title}</div>
       </div>
-      <div className="divide-y divide-line">
+      <div className="grid gap-px bg-line md:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => (
           <button
             key={item.label}
             className={cn(
-              'flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-mist-50',
+              'flex min-h-22 w-full items-start gap-3 bg-white px-5 py-4 text-left transition hover:bg-mist-50',
               item.tone === 'danger' ? 'text-danger-500' : 'text-ink-950',
             )}
           >
-            <item.icon className="mt-0.5 size-4 shrink-0" />
+            <div
+              className={cn(
+                'flex size-9 shrink-0 items-center justify-center border',
+                item.tone === 'danger'
+                  ? 'border-danger-100 bg-danger-100 text-danger-500'
+                  : 'border-accent-100 bg-accent-100 text-accent-700',
+              )}
+            >
+              <item.icon className="size-4" />
+            </div>
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{item.label}</span>
+              <span className="block text-sm font-semibold">{item.label}</span>
               {item.hint ? <span className="mt-1 block text-xs text-slate-500">{item.hint}</span> : null}
             </span>
           </button>
         ))}
       </div>
-    </aside>
+    </section>
   )
 }

@@ -25,21 +25,30 @@ export function PrintersPage() {
   }, [deferredSearch])
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <PageHeader
-          eyebrow="Printers"
-          title="Device and queue operations"
-        />
+    <div className="min-w-0">
+      <PageHeader
+        eyebrow="Printers"
+        title="Device and queue operations"
+      />
 
-        <FilterBar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search printers"
-        />
+      <ActionRail
+        title="Printer controls"
+        items={[
+          { label: 'Add printer', icon: Printer },
+          { label: 'Redirect blocked jobs', icon: ArrowRightLeft },
+          { label: 'Enable or disable queue link', icon: Power },
+          { label: 'Remove printer', icon: Wrench, tone: 'danger' },
+        ]}
+      />
 
-        <div className="mt-4">
-          <DataTable<AdminPrinter>
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search printers"
+      />
+
+      <div className="mt-4">
+        <DataTable<AdminPrinter>
             columns={[
               {
                 key: 'device',
@@ -83,18 +92,8 @@ export function PrintersPage() {
             getRowKey={(printer) => printer.id}
             onRowClick={(printer) => navigate(`/admin/printers/${printer.id}`)}
             emptyLabel="No printers match the current search."
-          />
-        </div>
+        />
       </div>
-
-      <ActionRail
-        title="Printer controls"
-        items={[
-          { label: 'Redirect blocked jobs', icon: ArrowRightLeft },
-          { label: 'Enable or disable queue link', icon: Power },
-          { label: 'Update service mode', icon: Wrench },
-        ]}
-      />
     </div>
   )
 }
@@ -109,22 +108,31 @@ export function PrinterDetailPage() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <PageHeader
-          eyebrow="Printers"
-          title={`Printer details: ${printer.name}`}
-          description={printer.model}
-        />
+    <div className="min-w-0">
+      <PageHeader
+        eyebrow="Printers"
+        title={`Printer details: ${printer.name}`}
+        description={printer.model}
+      />
 
-        <SectionTabs
-          tabs={['Summary', 'Device rules', 'Jobs']}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-        />
+      <ActionRail
+        title="Printer actions"
+        items={[
+          { label: 'Select queue', icon: Printer },
+          { label: 'Redirect active jobs', icon: ArrowRightLeft },
+          { label: 'Toggle availability', icon: Power },
+          { label: 'Delete printer', icon: Wrench, tone: 'danger' },
+        ]}
+      />
 
-        {activeTab === 'Summary' ? (
-          <section className="ui-panel overflow-hidden">
+      <SectionTabs
+        tabs={['Summary', 'Device rules', 'Jobs']}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
+
+      {activeTab === 'Summary' ? (
+        <section className="ui-panel overflow-hidden">
             <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
               <div>
                 <div className="text-sm font-medium text-ink-950">Configuration</div>
@@ -207,11 +215,11 @@ export function PrinterDetailPage() {
               <button className="ui-button-secondary">OK</button>
               <button className="ui-button">Apply</button>
             </div>
-          </section>
-        ) : null}
+        </section>
+      ) : null}
 
-        {activeTab === 'Device rules' ? (
-          <section className="ui-panel overflow-hidden">
+      {activeTab === 'Device rules' ? (
+        <section className="ui-panel overflow-hidden">
             <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
               <div>
                 <div className="text-sm font-medium text-ink-950">Printer/device groups</div>
@@ -250,11 +258,11 @@ export function PrinterDetailPage() {
               <button className="ui-button-secondary">OK</button>
               <button className="ui-button">Apply</button>
             </div>
-          </section>
-        ) : null}
+        </section>
+      ) : null}
 
-        {activeTab === 'Jobs' ? (
-          <section className="ui-panel overflow-hidden">
+      {activeTab === 'Jobs' ? (
+        <section className="ui-panel overflow-hidden">
             <div className="grid gap-0 md:grid-cols-4">
               <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
                 <div className="ui-heading">Queue</div>
@@ -275,19 +283,8 @@ export function PrinterDetailPage() {
                 </div>
               </div>
             </div>
-          </section>
-        ) : null}
-      </div>
-
-      <ActionRail
-        title="Printer actions"
-        items={[
-          { label: 'Select queue', icon: Printer },
-          { label: 'Redirect active jobs', icon: ArrowRightLeft },
-          { label: 'Toggle availability', icon: Power },
-          { label: 'View job log', icon: Wrench },
-        ]}
-      />
+        </section>
+      ) : null}
     </div>
   )
 }

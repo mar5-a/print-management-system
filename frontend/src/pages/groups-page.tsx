@@ -23,27 +23,36 @@ export function GroupsPage() {
   }, [deferredSearch])
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <PageHeader
-          eyebrow="Groups"
-          title="Quota and access groups"
-          meta={
-            <button className="ui-button">
-              <Plus className="size-4" />
-              New group
-            </button>
-          }
-        />
+    <div className="min-w-0">
+      <PageHeader
+        eyebrow="Groups"
+        title="Quota and access groups"
+        meta={
+          <button className="ui-button">
+            <Plus className="size-4" />
+            New group
+          </button>
+        }
+      />
 
-        <FilterBar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search groups"
-        />
+      <ActionRail
+        title="Group controls"
+        items={[
+          { label: 'Create group', icon: Plus },
+          { label: 'Adjust quota baselines', icon: Repeat },
+          { label: 'Review queue scope', icon: Shield },
+          { label: 'Delete selected groups', icon: Shield, tone: 'danger' },
+        ]}
+      />
 
-        <div className="mt-4">
-          <DataTable<AdminGroup>
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search groups"
+      />
+
+      <div className="mt-4">
+        <DataTable<AdminGroup>
             columns={[
               {
                 key: 'name',
@@ -75,18 +84,8 @@ export function GroupsPage() {
             getRowKey={(group) => group.id}
             onRowClick={(group) => navigate(`/admin/groups/${group.id}`)}
             emptyLabel="No groups match the current search."
-          />
-        </div>
+        />
       </div>
-
-      <ActionRail
-        title="Group controls"
-        items={[
-          { label: 'Adjust quota baselines', icon: Plus },
-          { label: 'Change reset schedule', icon: Repeat },
-          { label: 'Review queue scope', icon: Shield },
-        ]}
-      />
     </div>
   )
 }
@@ -100,14 +99,23 @@ export function GroupDetailPage() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <PageHeader
-          eyebrow="Groups"
-          title={`Group details: ${group.name}`}
-        />
+    <div className="min-w-0">
+      <PageHeader
+        eyebrow="Groups"
+        title={`Group details: ${group.name}`}
+      />
 
-        <section className="ui-panel overflow-hidden">
+      <ActionRail
+        title="Group actions"
+        items={[
+          { label: 'Select related users', icon: Shield },
+          { label: 'Adjust member balances', icon: Plus },
+          { label: 'Change member restrictions', icon: Repeat },
+          { label: 'Delete group', icon: Shield, tone: 'danger' },
+        ]}
+      />
+
+      <section className="ui-panel overflow-hidden">
           <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div>
               <div className="text-sm font-medium text-ink-950">Details</div>
@@ -173,17 +181,7 @@ export function GroupDetailPage() {
             <button className="ui-button-secondary">OK</button>
             <button className="ui-button">Apply</button>
           </div>
-        </section>
-      </div>
-
-      <ActionRail
-        title="Group actions"
-        items={[
-          { label: 'Select related users', icon: Shield },
-          { label: 'Adjust member balances', icon: Plus },
-          { label: 'Change member restrictions', icon: Repeat },
-        ]}
-      />
+      </section>
     </div>
   )
 }

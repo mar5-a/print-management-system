@@ -1,7 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { Ban, FileText, Plus, RefreshCw, UserRoundSearch } from 'lucide-react'
+import { Ban, Download, FileText, Plus, RefreshCw, UserRoundSearch } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ActionRail } from '../components/ui/action-rail'
+import { AdvancedFilterPanel } from '../components/ui/advanced-filter-panel'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
@@ -13,6 +14,9 @@ export function UsersPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'All' | 'Active' | 'Suspended'>('All')
+  const [department, setDepartment] = useState('All departments')
+  const [role, setRole] = useState('All roles')
+  const [groupFilter, setGroupFilter] = useState('All groups')
   const deferredSearch = useDeferredValue(search)
 
   const filteredUsers = useMemo(() => {
@@ -24,35 +28,77 @@ export function UsersPage() {
           value.toLowerCase().includes(query),
         )
       const matchesScope = scope === 'All' ? true : user.status === scope
-      return matchesSearch && matchesScope
+      const matchesDepartment = department === 'All departments' ? true : user.department === department
+      const matchesRole = role === 'All roles' ? true : user.role === role
+      const matchesGroup = groupFilter === 'All groups' ? true : user.groups.includes(groupFilter)
+      return matchesSearch && matchesScope && matchesDepartment && matchesRole && matchesGroup
     })
-  }, [deferredSearch, scope])
+  }, [deferredSearch, scope, department, role, groupFilter])
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <PageHeader
-          eyebrow="Users"
-          title="Identity and access control"
-          meta={
-            <>
-              <button className="ui-button-secondary">
-                <RefreshCw className="size-4" />
-                Sync AD
-              </button>
-              <button className="ui-button">
-                <Plus className="size-4" />
-                Add override
-              </button>
-            </>
-          }
-        />
+    <div className="min-w-0">
+      <PageHeader
+        eyebrow="Users"
+        title="Identity and access control"
+        meta={
+          <button className="ui-button-secondary">
+            <RefreshCw className="size-4" />
+            Sync AD
+          </button>
+        }
+      />
 
-        <FilterBar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search by account or name"
-        >
+      <AdvancedFilterPanel
+        fields={[
+          {
+            id: 'status',
+            label: 'Status',
+            value: scope,
+            options: ['All', 'Active', 'Suspended'],
+            onChange: (value) => setScope(value as 'All' | 'Active' | 'Suspended'),
+          },
+          {
+            id: 'department',
+            label: 'Department',
+            value: department,
+            options: ['All departments', 'Computer Science', 'Data Science', 'Information Systems', 'Mathematics', 'Operations'],
+            onChange: setDepartment,
+          },
+          {
+            id: 'role',
+            label: 'Role',
+            value: role,
+            options: ['All roles', 'Administrator', 'Technician', 'Faculty', 'Student'],
+            onChange: setRole,
+          },
+          {
+            id: 'group',
+            label: 'Group',
+            value: groupFilter,
+            options: ['All groups', 'CCM-Students', 'Faculty', 'Technicians', 'Administrators', 'AI Lab'],
+            onChange: setGroupFilter,
+          },
+        ]}
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by account or name"
+      >
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 xl:flex-nowrap">
+          <button className="ui-button px-3 py-2">
+            <Plus className="size-4" />
+            Add user
+          </button>
+          <button className="inline-flex items-center justify-center gap-2 rounded-none border border-danger-500 bg-danger-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-danger-500/90">
+            <Ban className="size-4" />
+            Delete
+          </button>
+          <button className="ui-button-secondary px-3 py-2">
+            <Download className="size-4" />
+            Export users
+          </button>
           {(['All', 'Active', 'Suspended'] as const).map((value) => (
             <button
               key={value}
@@ -62,10 +108,11 @@ export function UsersPage() {
               {value}
             </button>
           ))}
-        </FilterBar>
+        </div>
+      </FilterBar>
 
-        <div className="mt-4">
-          <DataTable<AdminUser>
+      <div className="mt-4">
+        <DataTable<AdminUser>
             columns={[
               {
                 key: 'account',
@@ -106,19 +153,8 @@ export function UsersPage() {
             getRowKey={(user) => user.id}
             onRowClick={(user) => navigate(`/admin/users/${user.id}`)}
             emptyLabel="No users match the current search."
-          />
-        </div>
+        />
       </div>
-
-      <ActionRail
-        title="User controls"
-        items={[
-          { label: 'Adjust quotas', icon: Plus },
-          { label: 'Suspend selected users', icon: Ban },
-          { label: 'View auth activity', icon: UserRoundSearch },
-          { label: 'Refresh directory sync', icon: RefreshCw },
-        ]}
-      />
     </div>
   )
 }
@@ -132,15 +168,24 @@ export function UserDetailPage() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <PageHeader
-          eyebrow="Users"
-          title="User details"
-          description={`${user.displayName} · ${user.username}`}
-        />
+    <div className="min-w-0">
+      <PageHeader
+        eyebrow="Users"
+        title="User details"
+        description={`${user.displayName} · ${user.username}`}
+      />
 
-        <section className="ui-panel overflow-hidden">
+      <ActionRail
+        title="User actions"
+        items={[
+          { label: 'Modify user details', icon: Plus },
+          { label: 'View transaction history', icon: FileText },
+          { label: 'View print history', icon: UserRoundSearch },
+          { label: 'Delete user', icon: Ban, tone: 'danger' },
+        ]}
+      />
+
+      <section className="ui-panel overflow-hidden">
           <div className="grid gap-0 border-b border-line md:grid-cols-4">
             <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
               <div className="ui-heading">Account</div>
@@ -210,19 +255,7 @@ export function UserDetailPage() {
             <button className="ui-button-secondary">OK</button>
             <button className="ui-button">Apply</button>
           </div>
-        </section>
-      </div>
-
-      <ActionRail
-        title="User actions"
-        items={[
-          { label: 'Modify user details', icon: Plus },
-          { label: 'View user transaction history', icon: FileText },
-          { label: 'View user print history', icon: UserRoundSearch },
-          { label: 'Export user history', icon: RefreshCw },
-          { label: 'Delete user', icon: Ban, tone: 'danger' },
-        ]}
-      />
+      </section>
     </div>
   )
 }
