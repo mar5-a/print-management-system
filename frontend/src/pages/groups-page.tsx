@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { Plus, Repeat, Shield } from 'lucide-react'
+import { Download, Plus, Trash2 } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ActionRail } from '../components/ui/action-rail'
+import { DetailActionBar, DetailPanel, DetailSection } from '../components/ui/admin-detail'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
@@ -25,32 +25,26 @@ export function GroupsPage() {
 
   return (
     <div className="min-w-0">
-      <PageHeader
-        eyebrow="Groups"
-        title="Quota and access groups"
-        meta={
-          <button className="ui-button">
-            <Plus className="size-4" />
-            New group
-          </button>
-        }
-      />
-
-      <ActionRail
-        title="Group controls"
-        items={[
-          { label: 'Create group', icon: Plus },
-          { label: 'Adjust quota baselines', icon: Repeat },
-          { label: 'Review queue scope', icon: Shield },
-          { label: 'Delete selected groups', icon: Shield, tone: 'danger' },
-        ]}
-      />
+      <PageHeader eyebrow="Groups" title="Quota and access groups" />
 
       <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search groups"
-      />
+      >
+        <button className="ui-button-action px-3 py-2">
+          <Plus className="size-4" />
+          New group
+        </button>
+        <button className="ui-button-danger-soft px-3 py-2">
+          <Trash2 className="size-4" />
+          Delete
+        </button>
+        <button className="ui-button-secondary px-3 py-2">
+          <Download className="size-4" />
+          Export groups
+        </button>
+      </FilterBar>
 
       <div className="mt-4">
         <DataTable<AdminGroup>
@@ -58,27 +52,27 @@ export function GroupsPage() {
               {
                 key: 'name',
                 header: 'Group',
-                render: (group) => <span className="font-semibold text-ink-950">{group.name}</span>,
+                render: (group) => <span className="ui-table-primary-strong">{group.name}</span>,
               },
               {
                 key: 'initial-credit',
                 header: 'Initial credit',
-                render: (group) => <span className="text-sm text-slate-600">{group.quotaPerPeriod}</span>,
+                render: (group) => <span className="ui-table-secondary">{group.quotaPerPeriod}</span>,
               },
               {
                 key: 'initial-restriction',
                 header: 'Initial restriction',
-                render: (group) => <span className="text-sm text-slate-600">{group.studentRestricted ? 'Yes' : 'No'}</span>,
+                render: (group) => <span className="ui-table-secondary">{group.studentRestricted ? 'Yes' : 'No'}</span>,
               },
               {
                 key: 'user-count',
                 header: 'User count',
-                render: (group) => <span className="text-sm text-slate-600">{group.userCount}</span>,
+                render: (group) => <span className="ui-table-secondary">{group.userCount}</span>,
               },
               {
                 key: 'schedule',
                 header: 'Schedule period',
-                render: (group) => <span className="text-sm text-slate-600">{group.schedule}</span>,
+                render: (group) => <span className="ui-table-secondary">{group.schedule}</span>,
               },
             ]}
             rows={filteredGroups}
@@ -92,6 +86,7 @@ export function GroupsPage() {
 }
 
 export function GroupDetailPage() {
+  const navigate = useNavigate()
   const { groupId } = useParams()
   const group = getGroupByIdOrUndefined(groupId)
 
@@ -103,86 +98,72 @@ export function GroupDetailPage() {
     <div className="min-w-0">
       <PageHeader
         eyebrow="Groups"
-        title={`Group details: ${group.name}`}
+        title={group.name}
+        description={`${group.userCount} users · ${group.owner}`}
+        meta={
+          <button className="ui-button-secondary" onClick={() => navigate('/admin/groups')}>
+            Back to groups
+          </button>
+        }
       />
 
-      <ActionRail
-        title="Group actions"
-        items={[
-          { label: 'Select related users', icon: Shield },
-          { label: 'Adjust member balances', icon: Plus },
-          { label: 'Change member restrictions', icon: Repeat },
-          { label: 'Delete group', icon: Shield, tone: 'danger' },
-        ]}
-      />
+      <DetailPanel>
+        <DetailSection title="Identity">
+          <label>
+            <div className="ui-detail-label">Group name</div>
+            <input className="ui-input mt-2" defaultValue={group.name} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Owner</div>
+            <input className="ui-input mt-2" defaultValue={group.owner} />
+          </label>
+          <label>
+            <div className="ui-detail-label">User count</div>
+            <input className="ui-input mt-2" defaultValue={group.userCount} />
+          </label>
+          <div />
+          <label className="xl:col-span-2">
+            <div className="ui-detail-label">Description</div>
+            <textarea className="ui-textarea mt-2 min-h-20" defaultValue={group.description} />
+          </label>
+        </DetailSection>
 
-      <section className="ui-panel overflow-hidden">
-          <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-            <div>
-              <div className="text-sm font-medium text-ink-950">Details</div>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <label>
-                <div className="ui-heading">Group name</div>
-                <input className="ui-input mt-2" defaultValue={group.name} />
-              </label>
-              <label>
-                <div className="ui-heading">User count</div>
-                <input className="ui-input mt-2" defaultValue={group.userCount} />
-              </label>
-            </div>
-          </div>
+        <DetailSection title="Quota policy">
+          <label>
+            <div className="ui-detail-label">Period</div>
+            <select className="ui-select mt-2 w-full" defaultValue={group.schedule}>
+              <option>Weekly</option>
+              <option>Monthly</option>
+              <option>Semester</option>
+            </select>
+          </label>
+          <label>
+            <div className="ui-detail-label">Initial balance</div>
+            <input className="ui-input mt-2" defaultValue={group.quotaPerPeriod} />
+          </label>
+          <label className="ui-checkbox-line xl:col-span-2">
+            <input type="checkbox" defaultChecked={group.studentRestricted} />
+            <span>Only allow this group to use restricted queue access</span>
+          </label>
+        </DetailSection>
 
-          <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-            <div>
-              <div className="text-sm font-medium text-ink-950">Quota scheduling</div>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <label>
-                <div className="ui-heading">Period</div>
-                <select className="ui-select mt-2 w-full" defaultValue={group.schedule}>
-                  <option>Weekly</option>
-                  <option>Monthly</option>
-                  <option>Semester</option>
-                </select>
-              </label>
-              <label>
-                <div className="ui-heading">Initial balance</div>
-                <input className="ui-input mt-2" defaultValue={group.quotaPerPeriod} />
-              </label>
-              <label className="flex items-center gap-3 lg:col-span-2">
-                <input type="checkbox" defaultChecked={group.studentRestricted} />
-                <span className="text-sm text-ink-950">Only allow this group to use restricted queue access</span>
-              </label>
-            </div>
-          </div>
+        <DetailSection title="New user defaults">
+          <label className="ui-checkbox-line xl:col-span-2">
+            <input type="checkbox" defaultChecked={group.defaultForNewUsers} />
+            <span>Use this group as the default assignment for new users</span>
+          </label>
+          <label>
+            <div className="ui-detail-label">New user quota</div>
+            <input className="ui-input mt-2" defaultValue={group.newUserQuota} />
+          </label>
+        </DetailSection>
 
-          <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-            <div>
-              <div className="text-sm font-medium text-ink-950">New user setting</div>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <label className="flex items-center gap-3 lg:col-span-2">
-                <input type="checkbox" defaultChecked={group.defaultForNewUsers} />
-                <span className="text-sm text-ink-950">Use this group as the default assignment for new users</span>
-              </label>
-              <label>
-                <div className="ui-heading">New user quota</div>
-                <input className="ui-input mt-2" defaultValue={group.newUserQuota} />
-              </label>
-              <label>
-                <div className="ui-heading">Owner</div>
-                <input className="ui-input mt-2" defaultValue={group.owner} />
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 px-5 py-4">
-            <button className="ui-button-ghost">Cancel</button>
-            <button className="ui-button-secondary">OK</button>
-            <button className="ui-button">Apply</button>
-          </div>
-      </section>
+        <DetailActionBar>
+          <button className="ui-button-ghost">Cancel</button>
+          <button className="ui-button-secondary">OK</button>
+          <button className="ui-button">Apply</button>
+        </DetailActionBar>
+      </DetailPanel>
     </div>
   )
 }

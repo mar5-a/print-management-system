@@ -1,12 +1,11 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { Ban, Download, FileText, Plus, RefreshCw, UserRoundSearch } from 'lucide-react'
+import { Ban, Download, Plus, RefreshCw } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ActionRail } from '../components/ui/action-rail'
+import { DetailActionBar, DetailAlert, DetailPanel, DetailSection } from '../components/ui/admin-detail'
 import { AdvancedFilterPanel } from '../components/ui/advanced-filter-panel'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
-import { StatusBadge } from '../components/ui/status-badge'
 import { getUserByIdOrUndefined, listUsers } from '../features/admin/users/api'
 import type { AdminUser } from '../types/admin'
 
@@ -88,11 +87,11 @@ export function UsersPage() {
         searchPlaceholder="Search by account or name"
       >
         <div className="flex w-full flex-wrap items-center justify-end gap-2 xl:flex-nowrap">
-          <button className="ui-button px-3 py-2">
+          <button className="ui-button-action px-3 py-2">
             <Plus className="size-4" />
             Add user
           </button>
-          <button className="inline-flex items-center justify-center gap-2 rounded-none border border-danger-500 bg-danger-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-danger-500/90">
+          <button className="ui-button-danger-soft px-3 py-2">
             <Ban className="size-4" />
             Delete
           </button>
@@ -116,38 +115,38 @@ export function UsersPage() {
         <DataTable<AdminUser>
             columns={[
               {
+                key: 'full-name',
+                header: 'Full name',
+                render: (user) => <span className="ui-table-primary-strong">{user.displayName}</span>,
+              },
+              {
                 key: 'account',
                 header: 'Account',
                 render: (user) => (
-                  <span className="font-mono text-xs text-ink-950">{user.username}</span>
+                  <span className="ui-table-secondary-mono">{user.username}</span>
                 ),
-              },
-              {
-                key: 'full-name',
-                header: 'Full name',
-                render: (user) => <span className="text-sm text-slate-600">{user.displayName}</span>,
               },
               {
                 key: 'balance',
                 header: 'Balance',
                 render: (user) => (
-                  <span className="font-semibold text-ink-950">{user.quotaTotal - user.quotaUsed}</span>
+                  <span className="ui-table-primary-strong">{user.quotaTotal - user.quotaUsed}</span>
                 ),
               },
               {
                 key: 'restricted',
                 header: 'Restricted',
-                render: (user) => <span className="text-sm text-slate-600">{user.status === 'Suspended' ? 'Yes' : 'No'}</span>,
+                render: (user) => <span className="ui-table-secondary">{user.status === 'Suspended' ? 'Yes' : 'No'}</span>,
               },
               {
                 key: 'cards',
                 header: 'Cards',
-                render: (user) => <span className="text-sm text-slate-600">{user.cardId ? '1' : '0'}</span>,
+                render: (user) => <span className="ui-table-secondary">{user.cardId ? '1' : '0'}</span>,
               },
               {
                 key: 'jobs',
                 header: 'Jobs',
-                render: (user) => <span className="text-sm text-slate-600">{user.jobCount}</span>,
+                render: (user) => <span className="ui-table-secondary">{user.jobCount}</span>,
               },
             ]}
             rows={filteredUsers}
@@ -161,6 +160,7 @@ export function UsersPage() {
 }
 
 export function UserDetailPage() {
+  const navigate = useNavigate()
   const { userId } = useParams()
   const user = getUserByIdOrUndefined(userId)
 
@@ -172,91 +172,115 @@ export function UserDetailPage() {
     <div className="min-w-0">
       <PageHeader
         eyebrow="Users"
-        title="User details"
-        description={`${user.displayName} · ${user.username}`}
+        title={user.displayName}
+        description={`${user.username} · ${user.role}`}
+        meta={
+          <button className="ui-button-secondary" onClick={() => navigate('/admin/users')}>
+            Back to users
+          </button>
+        }
       />
 
-      <ActionRail
-        title="User actions"
-        items={[
-          { label: 'Modify user details', icon: Plus },
-          { label: 'View transaction history', icon: FileText },
-          { label: 'View print history', icon: UserRoundSearch },
-          { label: 'Delete user', icon: Ban, tone: 'danger' },
-        ]}
-      />
+      <DetailPanel>
+        <DetailSection title="Identity">
+          <label>
+            <div className="ui-detail-label">Username</div>
+            <input className="ui-input mt-2 font-mono" defaultValue={user.username} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Full name</div>
+            <input className="ui-input mt-2" defaultValue={user.displayName} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Role</div>
+            <select className="ui-select mt-2 w-full" defaultValue={user.role}>
+              <option>Administrator</option>
+              <option>Technician</option>
+              <option>Faculty</option>
+              <option>Student</option>
+            </select>
+          </label>
+          <label>
+            <div className="ui-detail-label">Status</div>
+            <select className="ui-select mt-2 w-full" defaultValue={user.status}>
+              <option>Active</option>
+              <option>Suspended</option>
+            </select>
+          </label>
+        </DetailSection>
 
-      <section className="ui-panel overflow-hidden">
-          <div className="grid gap-0 border-b border-line md:grid-cols-4">
-            <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
-              <div className="ui-heading">Account</div>
-              <div className="mt-3 font-mono text-xs text-ink-950">{user.username}</div>
-            </div>
-            <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
-              <div className="ui-heading">Status</div>
-              <div className="mt-3">
-                <StatusBadge status={user.status} />
-              </div>
-            </div>
-            <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
-              <div className="ui-heading">Balance</div>
-              <div className="mt-3 text-lg font-semibold text-ink-950">{user.quotaTotal - user.quotaUsed}</div>
-            </div>
-            <div className="px-5 py-4">
-              <div className="ui-heading">Print jobs</div>
-              <div className="mt-3 text-lg font-semibold text-ink-950">{user.jobCount}</div>
-            </div>
+        <DetailSection title="Contact and directory">
+          <label>
+            <div className="ui-detail-label">Email</div>
+            <input className="ui-input mt-2" defaultValue={user.email} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Department</div>
+            <input className="ui-input mt-2" defaultValue={user.department} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Office</div>
+            <input className="ui-input mt-2" defaultValue={user.office} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Last seen</div>
+            <input className="ui-input mt-2" defaultValue={user.lastSeen} />
+          </label>
+        </DetailSection>
+
+        {user.status === 'Suspended' ? (
+          <div className="px-5 pt-5">
+            <DetailAlert
+              title="User restricted"
+              description="This account is suspended and cannot submit or release jobs until it is reactivated."
+            />
           </div>
+        ) : null}
 
-          <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-            <div>
-              <div className="text-sm font-medium text-ink-950">Other details</div>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <label>
-                <div className="ui-heading">Department</div>
-                <input className="ui-input mt-2" defaultValue={user.department} />
-              </label>
-              <label>
-                <div className="ui-heading">Office</div>
-                <input className="ui-input mt-2" defaultValue={user.office} />
-              </label>
+        <DetailSection title="Access and restrictions">
+          <label>
+            <div className="ui-detail-label">Balance</div>
+            <input className="ui-input mt-2" defaultValue={user.quotaTotal - user.quotaUsed} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Print jobs</div>
+            <input className="ui-input mt-2" defaultValue={user.jobCount} />
+          </label>
+          <label className="ui-checkbox-line xl:col-span-2">
+            <input type="checkbox" defaultChecked={user.status === 'Suspended'} />
+            <span>Restricted</span>
+          </label>
+          <label className="xl:col-span-2">
+            <div className="ui-detail-label">Primary identity</div>
+            <input className="ui-input mt-2 font-mono" defaultValue={user.primaryIdentity} />
+          </label>
+          <label className="xl:col-span-2">
+            <div className="ui-detail-label">Secondary identity</div>
+            <input className="ui-input mt-2 font-mono" defaultValue={user.secondaryIdentity} />
+          </label>
+          <label className="xl:col-span-2">
+            <div className="ui-detail-label">Card number</div>
+            <input className="ui-input mt-2 font-mono" defaultValue={user.cardId} />
+          </label>
+        </DetailSection>
 
-              <div className="lg:col-span-2">
-                <div className="ui-heading">Card/identity numbers</div>
-                <div className="mt-2 grid gap-4 md:grid-cols-2">
-                  <input className="ui-input font-mono" defaultValue={user.primaryIdentity} />
-                  <input className="ui-input font-mono" defaultValue={user.secondaryIdentity} />
-                </div>
-              </div>
+        <DetailSection title="Groups and notes" columns="single">
+          <label>
+            <div className="ui-detail-label">Groups</div>
+            <textarea className="ui-textarea mt-2 min-h-20 font-mono" defaultValue={user.groups.join('\n')} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Notes</div>
+            <textarea className="ui-textarea mt-2" defaultValue={user.notes} />
+          </label>
+        </DetailSection>
 
-              <label className="lg:col-span-2">
-                <div className="ui-heading">Card number (physically)</div>
-                <input className="ui-input mt-2 font-mono" defaultValue={user.cardId} />
-              </label>
-
-              <label className="lg:col-span-2">
-                <div className="ui-heading">Notes</div>
-                <textarea className="ui-textarea mt-2" defaultValue={user.notes} />
-              </label>
-
-              <label className="lg:col-span-2">
-                <div className="ui-heading">Group membership(s)</div>
-                <select className="ui-select mt-2 w-full" defaultValue={user.groups[0]}>
-                  {user.groups.map((group) => (
-                    <option key={group}>{group}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 px-5 py-4">
-            <button className="ui-button-ghost">Cancel</button>
-            <button className="ui-button-secondary">OK</button>
-            <button className="ui-button">Apply</button>
-          </div>
-      </section>
+        <DetailActionBar>
+          <button className="ui-button-ghost">Cancel</button>
+          <button className="ui-button-secondary">OK</button>
+          <button className="ui-button">Apply</button>
+        </DetailActionBar>
+      </DetailPanel>
     </div>
   )
 }

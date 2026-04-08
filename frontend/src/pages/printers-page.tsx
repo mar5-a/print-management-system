@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { ArrowRightLeft, Power, Printer, Wrench } from 'lucide-react'
+import { ArrowRightLeft, Plus, Trash2 } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ActionRail } from '../components/ui/action-rail'
+import { DetailActionBar, DetailAlert, DetailPanel, DetailSection } from '../components/ui/admin-detail'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
@@ -32,21 +32,24 @@ export function PrintersPage() {
         title="Device and queue operations"
       />
 
-      <ActionRail
-        title="Printer controls"
-        items={[
-          { label: 'Add printer', icon: Printer },
-          { label: 'Redirect blocked jobs', icon: ArrowRightLeft },
-          { label: 'Enable or disable queue link', icon: Power },
-          { label: 'Remove printer', icon: Wrench, tone: 'danger' },
-        ]}
-      />
-
       <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search printers"
-      />
+      >
+        <button className="ui-button-action px-3 py-2">
+          <Plus className="size-4" />
+          Add printer
+        </button>
+        <button className="ui-button-danger-soft px-3 py-2">
+          <Trash2 className="size-4" />
+          Delete
+        </button>
+        <button className="ui-button-secondary px-3 py-2">
+          <ArrowRightLeft className="size-4" />
+          Redirect jobs
+        </button>
+      </FilterBar>
 
       <div className="mt-4">
         <DataTable<AdminPrinter>
@@ -54,12 +57,12 @@ export function PrintersPage() {
               {
                 key: 'device',
                 header: 'Printer',
-                render: (printer) => <span className="font-semibold text-ink-950">{printer.name}</span>,
+                render: (printer) => <span className="ui-table-primary-strong">{printer.name}</span>,
               },
               {
                 key: 'software',
                 header: 'Software version',
-                render: (printer) => <span className="text-sm text-slate-600">{printer.softwareVersion}</span>,
+                render: (printer) => <span className="ui-table-secondary">{printer.softwareVersion}</span>,
               },
               {
                 key: 'status',
@@ -81,12 +84,12 @@ export function PrintersPage() {
               {
                 key: 'jobs',
                 header: 'Jobs',
-                render: (printer) => <span className="text-sm text-slate-600">{printer.releasedToday}</span>,
+                render: (printer) => <span className="ui-table-secondary">{printer.releasedToday}</span>,
               },
               {
                 key: 'held-jobs',
                 header: 'Held jobs',
-                render: (printer) => <span className="text-sm text-slate-600">{printer.pendingJobs}</span>,
+                render: (printer) => <span className="ui-table-secondary">{printer.pendingJobs}</span>,
               },
             ]}
             rows={filteredPrinters}
@@ -100,9 +103,10 @@ export function PrintersPage() {
 }
 
 export function PrinterDetailPage() {
+  const navigate = useNavigate()
   const { printerId } = useParams()
   const printer = getPrinterByIdOrUndefined(printerId)
-  const [activeTab, setActiveTab] = useState('Summary')
+  const [activeTab, setActiveTab] = useState('Settings')
   const queueOptions = listPrinterQueueNames()
 
   if (!printer) {
@@ -113,178 +117,180 @@ export function PrinterDetailPage() {
     <div className="min-w-0">
       <PageHeader
         eyebrow="Printers"
-        title={`Printer details: ${printer.name}`}
-        description={printer.model}
-      />
-
-      <ActionRail
-        title="Printer actions"
-        items={[
-          { label: 'Select queue', icon: Printer },
-          { label: 'Redirect active jobs', icon: ArrowRightLeft },
-          { label: 'Toggle availability', icon: Power },
-          { label: 'Delete printer', icon: Wrench, tone: 'danger' },
-        ]}
+        title={printer.name}
+        description={`${printer.model} · ${printer.hostedOn}`}
+        meta={
+          <button className="ui-button-secondary" onClick={() => navigate('/admin/printers')}>
+            Back to printers
+          </button>
+        }
       />
 
       <SectionTabs
-        tabs={['Summary', 'Device rules', 'Jobs']}
+        tabs={['Settings', 'Activity']}
         activeTab={activeTab}
         onChange={setActiveTab}
       />
 
-      {activeTab === 'Summary' ? (
-        <section className="ui-panel overflow-hidden">
-            <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-              <div>
-                <div className="text-sm font-medium text-ink-950">Configuration</div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <label>
-                  <div className="ui-heading">Hosted on</div>
-                  <input className="ui-input mt-2" defaultValue={printer.hostedOn} />
-                </label>
-                <label>
-                  <div className="ui-heading">IP address</div>
-                  <input className="ui-input mt-2 font-mono" defaultValue={printer.ipAddress} />
-                </label>
-                <label>
-                  <div className="ui-heading">Serial number</div>
-                  <input className="ui-input mt-2 font-mono" defaultValue={printer.serialNumber} />
-                </label>
-                <label>
-                  <div className="ui-heading">Physical identifier</div>
-                  <input className="ui-input mt-2" defaultValue={printer.model} />
-                </label>
-                <div>
-                  <div className="ui-heading">Toner status</div>
-                  <div className="mt-3 h-2 bg-slate-100">
-                    <div
-                      className={printer.toner <= 20 ? 'h-full bg-warn-500' : 'h-full bg-ink-950'}
-                      style={{ width: `${printer.toner}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 text-sm text-slate-500">{printer.toner}%</div>
-                </div>
-                <label>
-                  <div className="ui-heading">Software version</div>
-                  <input className="ui-input mt-2" defaultValue={printer.softwareVersion} />
-                </label>
-                <label>
-                  <div className="ui-heading">Location/department</div>
-                  <input className="ui-input mt-2" defaultValue={printer.location} />
-                </label>
-                <label>
-                  <div className="ui-heading">Queue type</div>
-                  <select className="ui-select mt-2 w-full" defaultValue={printer.queue}>
-                    {queueOptions.map((queueName) => (
-                      <option key={queueName}>{queueName}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+      {activeTab === 'Settings' ? (
+        <DetailPanel>
+          {printer.status !== 'Online' ? (
+            <div className="px-5 pt-5">
+              <DetailAlert
+                tone={printer.status === 'Maintenance' ? 'warn' : 'danger'}
+                title={printer.status === 'Maintenance' ? 'Printer under maintenance' : 'Printer offline'}
+                description={`Release flow is affected while this device is ${printer.status.toLowerCase()}. ${printer.pendingJobs} jobs are still waiting in the queue.`}
+              />
             </div>
+          ) : null}
 
-            <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-              <div>
-                <div className="text-sm font-medium text-ink-950">Hold/release queue settings</div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <label className="flex items-center gap-3 lg:col-span-2">
-                  <input type="checkbox" defaultChecked={printer.holdReleaseMode !== 'Immediate'} />
-                  <span className="text-sm text-ink-950">Enable hold/release queue</span>
-                </label>
-                <label>
-                  <div className="ui-heading">Release mode</div>
-                  <select className="ui-select mt-2 w-full" defaultValue={printer.holdReleaseMode}>
-                    <option>Secure Release</option>
-                    <option>User release</option>
-                    <option>Immediate</option>
-                  </select>
-                </label>
-                <div className="flex items-end">
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={printer.status} />
-                    <span className="text-sm text-slate-500">{printer.pendingJobs} pending</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <DetailSection title="Device identity">
+            <label>
+              <div className="ui-detail-label">Hosted on</div>
+              <input className="ui-input mt-2" defaultValue={printer.hostedOn} />
+            </label>
+            <label>
+              <div className="ui-detail-label">IP address</div>
+              <input className="ui-input mt-2 font-mono" defaultValue={printer.ipAddress} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Serial number</div>
+              <input className="ui-input mt-2 font-mono" defaultValue={printer.serialNumber} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Model</div>
+              <input className="ui-input mt-2" defaultValue={printer.model} />
+            </label>
+            <label className="xl:col-span-2">
+              <div className="ui-detail-label">Location</div>
+              <input className="ui-input mt-2" defaultValue={printer.location} />
+            </label>
+          </DetailSection>
 
-            <div className="flex justify-end gap-2 px-5 py-4">
-              <button className="ui-button-ghost">Cancel</button>
-              <button className="ui-button-secondary">OK</button>
-              <button className="ui-button">Apply</button>
-            </div>
-        </section>
+          <DetailSection title="Queue and release">
+            <label>
+              <div className="ui-detail-label">Queue</div>
+              <select className="ui-select mt-2 w-full" defaultValue={printer.queue}>
+                {queueOptions.map((queueName) => (
+                  <option key={queueName}>{queueName}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <div className="ui-detail-label">Status</div>
+              <select className="ui-select mt-2 w-full" defaultValue={printer.status}>
+                <option>Online</option>
+                <option>Offline</option>
+                <option>Maintenance</option>
+              </select>
+            </label>
+            <label className="ui-checkbox-line xl:col-span-2">
+              <input type="checkbox" defaultChecked={printer.holdReleaseMode !== 'Immediate'} />
+              <span>Enable hold/release queue</span>
+            </label>
+            <label>
+              <div className="ui-detail-label">Release mode</div>
+              <select className="ui-select mt-2 w-full" defaultValue={printer.holdReleaseMode}>
+                <option>Secure Release</option>
+                <option>Immediate</option>
+              </select>
+            </label>
+          </DetailSection>
+
+          <DetailSection title="Print policy">
+            <label>
+              <div className="ui-detail-label">Software version</div>
+              <input className="ui-input mt-2" defaultValue={printer.softwareVersion} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Device group</div>
+              <select className="ui-select mt-2 w-full" defaultValue={printer.deviceGroup}>
+                <option>Student Devices</option>
+                <option>Faculty Devices</option>
+                <option>Project Studio</option>
+                <option>Library Devices</option>
+              </select>
+            </label>
+            <label>
+              <div className="ui-detail-label">Alternate ID</div>
+              <input className="ui-input mt-2" defaultValue={printer.alternateId} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Failure mode</div>
+              <select className="ui-select mt-2 w-full" defaultValue={printer.failureMode}>
+                <option>Hold until redirected</option>
+                <option>Retry then notify</option>
+                <option>Cancel and notify</option>
+              </select>
+            </label>
+            <label className="xl:col-span-2">
+              <div className="ui-detail-label">Toner</div>
+              <div className="mt-2 border border-line bg-white px-4 py-4">
+                <div className="h-2 bg-slate-100">
+                  <div
+                    className={printer.toner <= 20 ? 'h-full bg-warn-500' : 'h-full bg-ink-950'}
+                    style={{ width: `${printer.toner}%` }}
+                  />
+                </div>
+                <div className="mt-3 text-sm font-medium text-ink-950">{printer.toner}% remaining</div>
+              </div>
+            </label>
+            <label className="xl:col-span-2">
+              <div className="ui-detail-label">Notes</div>
+              <textarea className="ui-textarea mt-2" defaultValue={printer.notes} />
+            </label>
+          </DetailSection>
+
+          <DetailActionBar>
+            <button className="ui-button-ghost">Cancel</button>
+            <button className="ui-button-secondary">OK</button>
+            <button className="ui-button">Apply</button>
+          </DetailActionBar>
+        </DetailPanel>
       ) : null}
 
-      {activeTab === 'Device rules' ? (
-        <section className="ui-panel overflow-hidden">
-            <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-              <div>
-                <div className="text-sm font-medium text-ink-950">Printer/device groups</div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <label className="lg:col-span-2">
-                  <div className="ui-heading">Device group</div>
-                  <select className="ui-select mt-2 w-full" defaultValue={printer.deviceGroup}>
-                    <option>Student Devices</option>
-                    <option>Faculty Devices</option>
-                    <option>Project Studio</option>
-                    <option>Library Devices</option>
-                  </select>
-                </label>
-                <label>
-                  <div className="ui-heading">Alternate ID</div>
-                  <input className="ui-input mt-2" defaultValue={printer.alternateId} />
-                </label>
-                <label>
-                  <div className="ui-heading">Failure mode</div>
-                  <select className="ui-select mt-2 w-full" defaultValue={printer.failureMode}>
-                    <option>Hold until redirected</option>
-                    <option>Retry then notify</option>
-                    <option>Cancel and notify</option>
-                  </select>
-                </label>
-                <label className="lg:col-span-2">
-                  <div className="ui-heading">Notes</div>
-                  <textarea className="ui-textarea mt-2" defaultValue={printer.notes} />
-                </label>
+      {activeTab === 'Activity' ? (
+        <DetailPanel>
+          <DetailSection title="Current state">
+            <div>
+              <div className="ui-detail-label">Status</div>
+              <div className="mt-2 flex h-10 items-center border border-line bg-white px-3">
+                <StatusBadge status={printer.status} />
               </div>
             </div>
+            <label>
+              <div className="ui-detail-label">Assigned queue</div>
+              <input className="ui-input mt-2" defaultValue={printer.queue} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Released today</div>
+              <input className="ui-input mt-2" defaultValue={printer.releasedToday} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Held jobs</div>
+              <input className="ui-input mt-2" defaultValue={printer.pendingJobs} />
+            </label>
+          </DetailSection>
 
-            <div className="flex justify-end gap-2 px-5 py-4">
-              <button className="ui-button-ghost">Cancel</button>
-              <button className="ui-button-secondary">OK</button>
-              <button className="ui-button">Apply</button>
-            </div>
-        </section>
-      ) : null}
-
-      {activeTab === 'Jobs' ? (
-        <section className="ui-panel overflow-hidden">
-            <div className="grid gap-0 md:grid-cols-4">
-              <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
-                <div className="ui-heading">Queue</div>
-                <div className="mt-3 text-sm font-medium text-ink-950">{printer.queue}</div>
-              </div>
-              <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
-                <div className="ui-heading">Released today</div>
-                <div className="mt-3 text-lg font-semibold text-ink-950">{printer.releasedToday}</div>
-              </div>
-              <div className="border-b border-line px-5 py-4 md:border-r md:border-b-0">
-                <div className="ui-heading">Held jobs</div>
-                <div className="mt-3 text-lg font-semibold text-ink-950">{printer.pendingJobs}</div>
-              </div>
-              <div className="px-5 py-4">
-                <div className="ui-heading">Status</div>
-                <div className="mt-3">
-                  <StatusBadge status={printer.status} />
-                </div>
-              </div>
-            </div>
-        </section>
+          <DetailSection title="Operational metrics">
+            <label>
+              <div className="ui-detail-label">Hosted on</div>
+              <input className="ui-input mt-2" defaultValue={printer.hostedOn} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Software version</div>
+              <input className="ui-input mt-2" defaultValue={printer.softwareVersion} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Toner</div>
+              <input className="ui-input mt-2" defaultValue={`${printer.toner}%`} />
+            </label>
+            <label>
+              <div className="ui-detail-label">Failure mode</div>
+              <input className="ui-input mt-2" defaultValue={printer.failureMode} />
+            </label>
+          </DetailSection>
+        </DetailPanel>
       ) : null}
     </div>
   )

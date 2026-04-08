@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Clock3,
   FileClock,
@@ -7,7 +7,7 @@ import {
   ShieldCheck,
   Upload,
 } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useOutlet } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { getCurrentPortalUserProfile } from '@/features/portal/session/api'
 
@@ -19,12 +19,13 @@ const portalNavItems = [
 
 export function UserShell() {
   const location = useLocation()
+  const outlet = useOutlet()
   const portalUserProfile = getCurrentPortalUserProfile()
   const sectionTitle =
     portalNavItems.find((item) => location.pathname.startsWith(item.href))?.label ?? 'Portal'
 
   return (
-    <div className="min-h-screen bg-transparent text-ink-950">
+    <div className="min-h-screen bg-transparent text-ink-950 lg:h-screen lg:overflow-hidden">
       <div className="h-9 border-b border-sky-600/20 bg-ink-950 text-[0.78rem] text-white">
         <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3 font-medium">
@@ -39,8 +40,8 @@ export function UserShell() {
         </div>
       </div>
 
-      <div className="mx-auto grid min-h-[calc(100vh-2.25rem)] max-w-[1600px] grid-cols-1 lg:grid-cols-[232px_minmax(0,1fr)]">
-        <aside className="flex flex-col border-b border-line/70 bg-white/70 px-4 py-5 backdrop-blur lg:border-r lg:border-b-0">
+      <div className="mx-auto grid min-h-[calc(100vh-2.25rem)] max-w-[1600px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[232px_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="flex flex-col border-b border-line/70 bg-white/70 px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
           <div className="border-b border-line pb-5">
             <div className="ui-kicker">Your Portal</div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">Print Portal</div>
@@ -95,7 +96,7 @@ export function UserShell() {
           </div>
         </aside>
 
-        <div className="min-w-0">
+        <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
           <header className="border-b border-line/80 bg-white/75 backdrop-blur">
             <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -118,18 +119,8 @@ export function UserShell() {
             </div>
           </header>
 
-          <main className="px-4 py-5 sm:px-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.24, ease: 'easeOut' }}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+          <main className="px-4 py-5 sm:px-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+            <div>{outlet}</div>
           </main>
         </div>
       </div>

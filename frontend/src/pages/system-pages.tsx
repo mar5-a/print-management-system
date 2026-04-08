@@ -1,21 +1,11 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import {
-  BookOpen,
   Download,
-  FileClock,
-  FileText,
-  MonitorSmartphone,
   Plus,
-  RefreshCw,
   RotateCcw,
-  Save,
-  Settings2,
   SlidersHorizontal,
   Trash2,
-  Wallet,
-  Wrench,
 } from 'lucide-react'
-import { ActionRail } from '../components/ui/action-rail'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
@@ -203,25 +193,28 @@ export function AccountsPage() {
     <div className="min-w-0">
       <PageHeader eyebrow="Accounts" title="Shared accounts" description="Minimal shared billing and access view." />
 
-      <ActionRail
-        title="Account actions"
-        items={[
-          { label: 'Add account', icon: Plus },
-          { label: 'Review balances', icon: Wallet },
-          { label: 'Sync account mapping', icon: RefreshCw },
-          { label: 'Delete account', icon: Trash2, tone: 'danger' },
-        ]}
-      />
-
-      <FilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search accounts" />
+      <FilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search accounts">
+        <button className="ui-button-action px-3 py-2">
+          <Plus className="size-4" />
+          Add account
+        </button>
+        <button className="ui-button-danger-soft px-3 py-2">
+          <Trash2 className="size-4" />
+          Delete
+        </button>
+        <button className="ui-button-secondary px-3 py-2">
+          <Download className="size-4" />
+          Export accounts
+        </button>
+      </FilterBar>
 
       <div className="mt-4">
         <DataTable<SharedAccountRow>
           columns={[
-            { key: 'name', header: 'Account', render: (row) => <span className="font-semibold text-ink-950">{row.name}</span> },
-            { key: 'balance', header: 'Balance', render: (row) => <span className="text-sm text-slate-600">{row.balance}</span> },
-            { key: 'owner', header: 'Owner', render: (row) => <span className="text-sm text-slate-600">{row.owner}</span> },
-            { key: 'access', header: 'Access', render: (row) => <span className="text-sm text-slate-600">{row.access}</span> },
+            { key: 'name', header: 'Account', render: (row) => <span className="ui-table-primary-strong">{row.name}</span> },
+            { key: 'balance', header: 'Balance', render: (row) => <span className="ui-table-secondary">{row.balance}</span> },
+            { key: 'owner', header: 'Owner', render: (row) => <span className="ui-table-secondary">{row.owner}</span> },
+            { key: 'access', header: 'Access', render: (row) => <span className="ui-table-secondary">{row.access}</span> },
           ]}
           rows={filteredAccounts}
           getRowKey={(row) => row.id}
@@ -249,17 +242,15 @@ export function DevicesPage() {
     <div className="min-w-0">
       <PageHeader eyebrow="Devices" title="Registered devices" description="Thin device inventory aligned with the printer fleet." />
 
-      <ActionRail
-        title="Device actions"
-        items={[
-          { label: 'Add device', icon: Plus },
-          { label: 'Refresh device status', icon: RefreshCw },
-          { label: 'Review offline devices', icon: MonitorSmartphone },
-          { label: 'Remove device', icon: Trash2, tone: 'danger' },
-        ]}
-      />
-
       <FilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search devices">
+        <button className="ui-button-action px-3 py-2">
+          <Plus className="size-4" />
+          Add device
+        </button>
+        <button className="ui-button-danger-soft px-3 py-2">
+          <Trash2 className="size-4" />
+          Delete
+        </button>
         {(['All', 'Online', 'Offline', 'Maintenance'] as const).map((value) => (
           <button key={value} className="ui-button-ghost">
             {value}
@@ -270,9 +261,9 @@ export function DevicesPage() {
       <div className="mt-4">
         <DataTable<DeviceRow>
           columns={[
-            { key: 'hostname', header: 'Hostname', render: (row) => <span className="font-mono text-xs text-ink-950">{row.hostname}</span> },
-            { key: 'printer', header: 'Printer', render: (row) => <span className="text-sm text-slate-600">{row.printer}</span> },
-            { key: 'location', header: 'Location', render: (row) => <span className="text-sm text-slate-600">{row.location}</span> },
+            { key: 'hostname', header: 'Hostname', render: (row) => <span className="ui-table-secondary-mono">{row.hostname}</span> },
+            { key: 'printer', header: 'Printer', render: (row) => <span className="ui-table-primary">{row.printer}</span> },
+            { key: 'location', header: 'Location', render: (row) => <span className="ui-table-secondary">{row.location}</span> },
             { key: 'status', header: 'Status', render: (row) => <StatusText status={row.status} /> },
           ]}
           rows={filteredDevices}
@@ -288,16 +279,6 @@ export function ReportsPage() {
   return (
     <div className="min-w-0">
       <PageHeader eyebrow="Reports" title="Reports" description="Basic report catalog until reporting specs are finalized." />
-
-      <ActionRail
-        title="Report actions"
-        items={[
-          { label: 'Create report', icon: Plus },
-          { label: 'Run selected report', icon: FileText },
-          { label: 'Download latest export', icon: Download },
-          { label: 'Refresh report status', icon: RefreshCw },
-        ]}
-      />
 
       <div className="ui-panel overflow-hidden">
         <div className="grid gap-0 border-b border-line md:grid-cols-3">
@@ -318,10 +299,10 @@ export function ReportsPage() {
         <div className="px-5 py-4">
           <DataTable<ReportRow>
             columns={[
-              { key: 'title', header: 'Report', render: (row) => <span className="font-medium text-ink-950">{row.title}</span> },
-              { key: 'category', header: 'Category', render: (row) => <span className="text-sm text-slate-600">{row.category}</span> },
-              { key: 'schedule', header: 'Schedule', render: (row) => <span className="text-sm text-slate-600">{row.schedule}</span> },
-              { key: 'last-run', header: 'Last run', render: (row) => <span className="text-sm text-slate-600">{row.lastRun}</span> },
+              { key: 'title', header: 'Report', render: (row) => <span className="ui-table-primary">{row.title}</span> },
+              { key: 'category', header: 'Category', render: (row) => <span className="ui-table-secondary">{row.category}</span> },
+              { key: 'schedule', header: 'Schedule', render: (row) => <span className="ui-table-secondary">{row.schedule}</span> },
+              { key: 'last-run', header: 'Last run', render: (row) => <span className="ui-table-secondary">{row.lastRun}</span> },
             ]}
             rows={reports}
             getRowKey={(row) => row.id}
@@ -337,16 +318,6 @@ export function OptionsPage() {
   return (
     <div className="min-w-0">
       <PageHeader eyebrow="Options" title="System options" description="Minimal settings surface for defaults and integrations." />
-
-      <ActionRail
-        title="Option actions"
-        items={[
-          { label: 'Save settings', icon: Save },
-          { label: 'Reload defaults', icon: RefreshCw },
-          { label: 'Review integrations', icon: Settings2 },
-          { label: 'Service maintenance', icon: Wrench },
-        ]}
-      />
 
       <section className="ui-panel overflow-hidden">
         <div className="grid gap-6 border-b border-line px-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -403,16 +374,6 @@ export function LogsPage() {
     <div className="min-w-0">
       <PageHeader eyebrow="Logs" title="Audit and print logs" description="Recent print activity with high-level filters and system activity below." />
 
-      <ActionRail
-        title="Log actions"
-        items={[
-          { label: 'Export CSV', icon: Download },
-          { label: 'Refresh entries', icon: RefreshCw },
-          { label: 'Filter audit log', icon: SlidersHorizontal },
-          { label: 'Archive old logs', icon: FileClock },
-        ]}
-      />
-
       <AdvancedFilters />
 
       <section className="ui-panel overflow-hidden">
@@ -436,12 +397,12 @@ export function LogsPage() {
         <div className="px-5 py-4">
           <DataTable<PrintLogRow>
             columns={[
-              { key: 'date', header: 'Date', render: (row) => <span className="text-sm text-ink-950">{row.date}</span> },
-              { key: 'user', header: 'User', render: (row) => <span className="font-medium text-ink-950">{row.user}</span> },
-              { key: 'department', header: 'Department', render: (row) => <span className="text-sm text-slate-600">{row.department}</span> },
-              { key: 'device', header: 'Device', render: (row) => <span className="text-sm text-slate-600">{row.device}</span> },
-              { key: 'pages', header: 'Pages', render: (row) => <span className="text-sm text-slate-600">{row.pages}</span> },
-              { key: 'cost', header: 'Cost', render: (row) => <span className="text-sm text-slate-600">{row.cost}</span> },
+              { key: 'date', header: 'Date', render: (row) => <span className="ui-table-secondary">{row.date}</span> },
+              { key: 'user', header: 'User', render: (row) => <span className="ui-table-primary">{row.user}</span> },
+              { key: 'department', header: 'Department', render: (row) => <span className="ui-table-secondary">{row.department}</span> },
+              { key: 'device', header: 'Device', render: (row) => <span className="ui-table-secondary">{row.device}</span> },
+              { key: 'pages', header: 'Pages', render: (row) => <span className="ui-table-secondary">{row.pages}</span> },
+              { key: 'cost', header: 'Cost', render: (row) => <span className="ui-table-secondary">{row.cost}</span> },
               {
                 key: 'status',
                 header: 'Status',
@@ -474,10 +435,10 @@ export function LogsPage() {
         <div className="px-5 py-4">
           <DataTable<LogRow>
             columns={[
-              { key: 'type', header: 'Type', render: (row) => <span className="text-sm text-slate-600">{row.type}</span> },
-              { key: 'subject', header: 'Subject', render: (row) => <span className="font-medium text-ink-950">{row.subject}</span> },
-              { key: 'actor', header: 'Actor', render: (row) => <span className="font-mono text-xs text-slate-600">{row.actor}</span> },
-              { key: 'time', header: 'Time', render: (row) => <span className="text-sm text-slate-600">{row.time}</span> },
+              { key: 'type', header: 'Type', render: (row) => <span className="ui-table-secondary">{row.type}</span> },
+              { key: 'subject', header: 'Subject', render: (row) => <span className="ui-table-primary">{row.subject}</span> },
+              { key: 'actor', header: 'Actor', render: (row) => <span className="ui-table-secondary-mono">{row.actor}</span> },
+              { key: 'time', header: 'Time', render: (row) => <span className="ui-table-secondary">{row.time}</span> },
             ]}
             rows={logEntries}
             getRowKey={(row) => row.id}
@@ -493,16 +454,6 @@ export function AboutPage() {
   return (
     <div className="min-w-0">
       <PageHeader eyebrow="About" title="System information" description="Minimal operational metadata for the in-house build." />
-
-      <ActionRail
-        title="About actions"
-        items={[
-          { label: 'View build notes', icon: BookOpen },
-          { label: 'Review release scope', icon: FileClock },
-          { label: 'Export system info', icon: Download },
-          { label: 'Open technical notes', icon: FileText },
-        ]}
-      />
 
       <section className="ui-panel overflow-hidden">
         <div className="grid gap-0 md:grid-cols-3">

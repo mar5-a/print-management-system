@@ -1,4 +1,6 @@
 import { adminPrinters, adminUsers } from '@/mocks/admin-store'
+import { isQueueDeleteBlocked } from '@/lib/status'
+import { listQueues } from '../queues/api'
 
 const trendValues = [
   180, 45, 20, 95, 170, 145, 205, 210, 120, 18, 25, 260, 190,
@@ -15,11 +17,20 @@ const recentPrintRows = [
 ]
 
 export function getDashboardSnapshot() {
+  const queues = listQueues()
+  const queueMetrics = {
+    total: queues.length,
+    blocked: queues.filter(isQueueDeleteBlocked).length,
+    secureRelease: queues.filter((queue) => queue.releaseMode === 'Secure Release').length,
+    disabled: queues.filter((queue) => !queue.enabled).length,
+  }
+
   return {
     adminPrinters,
     adminUsers,
     trendLabels,
     trendValues,
     recentPrintRows,
+    queueMetrics,
   }
 }

@@ -4,14 +4,11 @@ import {
   Ban,
   Clock3,
   FileText,
-  Plus,
   Power,
   Printer,
-  RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { ActionRail } from '../components/ui/action-rail'
 import { AdvancedFilterPanel } from '../components/ui/advanced-filter-panel'
 import { DataTable } from '../components/ui/data-table'
 import { PageHeader } from '../components/ui/page-header'
@@ -203,9 +200,9 @@ export function DashboardPage() {
           <div className="px-5 py-4">
             <DataTable<typeof recentPrintRows[number]>
               columns={[
-                { key: 'user', header: 'User', render: (row) => <span className="font-mono text-xs text-ink-950">{row.user}</span> },
-                { key: 'device', header: 'Device', render: (row) => <span className="text-sm text-slate-600">{row.device}</span> },
-                { key: 'pages', header: 'Pages', render: (row) => <span className="text-sm text-slate-600">{row.pages}</span> },
+                { key: 'user', header: 'User', render: (row) => <span className="ui-table-primary-mono">{row.user}</span> },
+                { key: 'device', header: 'Device', render: (row) => <span className="ui-table-secondary">{row.device}</span> },
+                { key: 'pages', header: 'Pages', render: (row) => <span className="ui-table-secondary">{row.pages}</span> },
                 {
                   key: 'status',
                   header: 'Status',
@@ -257,15 +254,6 @@ export function DashboardPage() {
         </section>
       </div>
 
-      <ActionRail
-        title="Dashboard actions"
-        items={[
-          { label: 'Add user', icon: Plus },
-          { label: 'Review printers', icon: Printer },
-          { label: 'Sync directory', icon: RefreshCw },
-          { label: 'Redirect jobs', icon: ArrowRightLeft, hint: 'Move held jobs away from blocked devices' },
-        ]}
-      />
     </div>
   )
 }

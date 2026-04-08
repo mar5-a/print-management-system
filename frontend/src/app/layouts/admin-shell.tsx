@@ -41,7 +41,7 @@ export function AdminShell() {
     navItems.find((item) => location.pathname.startsWith(item.href))?.label ?? 'Admin'
 
   return (
-    <div className="min-h-screen bg-transparent text-ink-950">
+    <div className="min-h-screen bg-transparent text-ink-950 lg:h-screen lg:overflow-hidden">
       <div className="h-9 border-b border-accent-600/20 bg-accent-700 text-[0.78rem] text-white">
         <div className="mx-auto flex h-full max-w-[1800px] items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3 font-medium">
@@ -58,13 +58,13 @@ export function AdminShell() {
         </div>
       </div>
 
-      <div className="mx-auto grid min-h-[calc(100vh-2.25rem)] max-w-[1800px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="flex flex-col border-b border-line/70 bg-ink-950 px-4 py-5 text-white lg:border-r lg:border-b-0">
-          <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+      <div className="mx-auto grid min-h-[calc(100vh-2.25rem)] max-w-[1800px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[248px_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="flex flex-col border-b border-line/70 bg-white/70 px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
+          <div className="flex items-start justify-between gap-4 border-b border-line pb-5">
             <div>
-              <div className="ui-kicker text-white/45">Print Management</div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight">CCM Admin</div>
-              <p className="mt-2 max-w-[16rem] text-sm text-slate-300">Operations console</p>
+              <div className="ui-kicker">Print Management</div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">CCM Admin</div>
+              <p className="mt-2 max-w-[16rem] text-sm text-slate-500">Operations console</p>
             </div>
             <DatabaseZap className="mt-1 size-5 text-accent-500" />
           </div>
@@ -76,10 +76,10 @@ export function AdminShell() {
                 to={item.href}
                 className={({ isActive }) =>
                   cn(
-                    'relative flex items-center gap-3 overflow-hidden px-3 py-3 text-sm font-medium transition',
+                    'relative flex items-center gap-3 overflow-hidden border px-3 py-3 text-sm font-medium transition',
                     isActive
-                      ? 'bg-white text-ink-950'
-                      : 'text-slate-300 hover:bg-white/6 hover:text-white',
+                      ? 'border-ink-950 bg-ink-950 text-white'
+                      : 'border-transparent text-slate-600 hover:border-line hover:bg-white hover:text-ink-950',
                   )
                 }
               >
@@ -100,21 +100,21 @@ export function AdminShell() {
             ))}
           </nav>
 
-          <div className="mt-auto border-t border-white/10 pt-5">
-            <div className="ui-kicker text-white/45">Operator</div>
+          <div className="mt-auto border-t border-line pt-5">
+            <div className="ui-kicker">Operator</div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <div>
-                <div className="font-semibold">David Admin</div>
-                <div className="text-slate-400">Operations</div>
+                <div className="font-semibold text-ink-950">David Admin</div>
+                <div className="text-slate-500">Operations</div>
               </div>
-              <div className="rounded-full bg-accent-500/10 px-2.5 py-1 text-[0.7rem] font-semibold text-accent-500">
+              <div className="rounded-full bg-accent-100 px-2.5 py-1 text-[0.7rem] font-semibold text-accent-700">
                 Online
               </div>
             </div>
           </div>
         </aside>
 
-        <div className="min-w-0">
+        <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
           <header className="border-b border-line/80 bg-white/80 backdrop-blur">
             <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -143,7 +143,7 @@ export function AdminShell() {
             </div>
           </header>
 
-          <main className="px-4 py-5 sm:px-6">
+          <main className="px-4 py-5 sm:px-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}

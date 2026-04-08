@@ -1,10 +1,8 @@
-import { ArrowRightLeft, FileClock, Printer, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ActionRail } from '@/components/composite/action-rail'
 import { PageHeader } from '@/components/composite/page-header'
 import { SectionTabs } from '@/components/composite/section-tabs'
-import { StatStrip } from '@/components/composite/stat-strip'
 import { isQueueDeleteBlocked } from '@/lib/status'
 import { getQueueByIdOrUndefined, listQueuePrinters, removeQueue, saveQueue } from './api'
 import { QueueAssignmentsPanel } from './components/queue-assignments-panel'
@@ -26,7 +24,7 @@ export function QueueDetailScreen() {
 }
 
 function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState('Configuration')
+  const [activeTab, setActiveTab] = useState('Policy')
   const [form, setForm] = useState(queue)
   const [saveMessage, setSaveMessage] = useState('')
   const [deleteReviewOpen, setDeleteReviewOpen] = useState(false)
@@ -77,36 +75,31 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
       <PageHeader
         eyebrow="Queues"
         title={`Queue details: ${form.name}`}
-        description={`${form.audience} · ${form.releaseMode} · ${form.hostedOn}`}
-        meta={<button type="button" className="ui-button-secondary" onClick={onBack}>Back to queues</button>}
+        description={`${form.audience} access on ${form.hostedOn}`}
+        meta={
+          <>
+            <button type="button" className="ui-button-secondary" onClick={onBack}>
+              Back to queues
+            </button>
+            <button
+              type="button"
+              className="ui-button-danger-soft px-3 py-2"
+              onClick={() => setDeleteReviewOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              {canDelete ? 'Delete queue' : 'Review delete'}
+            </button>
+          </>
+        }
       />
 
-      <StatStrip
-        items={[
-          { label: 'Assigned printers', value: `${form.printerIds.length}`, hint: 'Release endpoints linked to this queue' },
-          { label: 'Allowed groups', value: `${form.allowedGroups.length}`, hint: 'Access-limited membership scope' },
-          { label: 'Released today', value: `${form.releasedToday}`, hint: form.lastActivity },
-          { label: 'Held backlog', value: `${form.heldJobs}`, hint: `${form.pendingJobs} active jobs still in flow` },
-        ]}
-      />
+      {deleteReviewOpen ? <QueueDeleteReview canDelete={canDelete} form={form} onClose={() => setDeleteReviewOpen(false)} onDelete={handleDelete} onReviewAssignments={() => setActiveTab('Assignments')} onReviewLog={() => setActiveTab('Activity')} /> : null}
 
-      <ActionRail
-        title="Queue actions"
-        items={[
-          { label: 'Review assignments', hint: 'See which printers can accept this queue.', icon: Printer, onClick: () => setActiveTab('Assignments') },
-          { label: 'Review release flow', hint: 'Check hold/release and failure-handling policy.', icon: ArrowRightLeft, onClick: () => setActiveTab('Configuration') },
-          { label: 'Open queue log', hint: 'Review queue faults, routing changes, and policy events.', icon: FileClock, onClick: () => setActiveTab('Queue log') },
-          { label: 'Delete queue', hint: canDelete ? 'No active or held jobs are blocking deletion.' : 'Deletion is blocked while jobs remain.', icon: Trash2, tone: 'danger', onClick: () => setDeleteReviewOpen(true) },
-        ]}
-      />
+      <SectionTabs tabs={['Policy', 'Assignments', 'Activity']} activeTab={activeTab} onChange={setActiveTab} />
 
-      {deleteReviewOpen || !canDelete ? <QueueDeleteReview canDelete={canDelete} form={form} onClose={() => setDeleteReviewOpen(false)} onDelete={handleDelete} onReviewAssignments={() => setActiveTab('Assignments')} onReviewLog={() => setActiveTab('Queue log')} /> : null}
-
-      <SectionTabs tabs={['Configuration', 'Assignments', 'Queue log']} activeTab={activeTab} onChange={setActiveTab} />
-
-      {activeTab === 'Configuration' ? <QueueConfigurationPanel canDelete={canDelete} form={form} onApply={handleApply} onReset={resetForm} saveMessage={saveMessage} updateForm={updateForm} /> : null}
-      {activeTab === 'Assignments' ? <QueueAssignmentsPanel assignedPrinters={assignedPrinters} form={form} onApply={handleApply} onReviewLog={() => setActiveTab('Queue log')} toggleAssignment={toggleAssignment} /> : null}
-      {activeTab === 'Queue log' ? <QueueLogPanel canDelete={canDelete} form={form} openLogCount={openLogCount} /> : null}
+      {activeTab === 'Policy' ? <QueueConfigurationPanel form={form} onApply={handleApply} onReset={resetForm} saveMessage={saveMessage} updateForm={updateForm} /> : null}
+      {activeTab === 'Assignments' ? <QueueAssignmentsPanel assignedPrinters={assignedPrinters} form={form} onApply={handleApply} onReviewLog={() => setActiveTab('Activity')} toggleAssignment={toggleAssignment} /> : null}
+      {activeTab === 'Activity' ? <QueueLogPanel canDelete={canDelete} form={form} openLogCount={openLogCount} /> : null}
     </div>
   )
 }
