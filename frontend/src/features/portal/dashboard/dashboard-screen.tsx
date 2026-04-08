@@ -25,21 +25,20 @@ export function PortalDashboardScreen() {
   return (
     <div className="min-w-0">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <PortalMetric label="Completed pages" value={`${totalPages}`} hint="Completed jobs only" />
-        <PortalMetric label="Completed cost" value={formatUsd(totalCost)} hint="Calculated from job records" />
+        <PortalMetric label="Completed pages" value={`${totalPages}`} hint="This period" />
+        <PortalMetric label="Completed cost" value={formatUsd(totalCost)} hint="From completed jobs" />
         <PortalMetric
           label="Quota used"
           value={`${Math.round((profile.quotaUsed / profile.quotaTotal) * 100)}%`}
-          hint={`${profile.quotaUsed} of ${profile.quotaTotal} pages`}
+          hint={`${quotaRemaining} pages left`}
         />
-        <PortalMetric label="Active jobs" value={`${activeJobs.length}`} hint="Pending release or in progress" />
+        <PortalMetric label="Active jobs" value={`${activeJobs.length}`} hint="Release or cancel" />
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="ui-panel overflow-hidden">
           <div className="border-b border-line bg-mist-50/80 px-5 py-4">
-            <div className="text-base font-semibold text-ink-950">This week</div>
-            <div className="mt-1 text-sm text-slate-500">Personal print activity from your job records.</div>
+            <div className="text-base font-semibold text-ink-950">Usage this week</div>
           </div>
           <div className="px-5 py-5">
             <div className="rounded-none border border-line bg-white p-4">
@@ -64,20 +63,18 @@ export function PortalDashboardScreen() {
 
         <section className="ui-panel overflow-hidden">
           <div className="border-b border-line bg-mist-50/80 px-5 py-4">
-            <div className="text-base font-semibold text-ink-950">Quota progress</div>
-            <div className="mt-1 text-sm text-slate-500">Submission is blocked once your remaining quota is insufficient.</div>
+            <div className="text-base font-semibold text-ink-950">Quota</div>
           </div>
           <div className="px-5 py-5">
             <div className="text-3xl font-semibold tracking-tight text-ink-950">
-              {profile.quotaUsed}/{profile.quotaTotal}
+              {quotaRemaining}
             </div>
+            <div className="mt-1 text-sm text-slate-500">pages remaining</div>
             <div className="mt-4 h-3 bg-slate-100">
               <div className="h-full bg-sky-600" style={{ width: `${(profile.quotaUsed / profile.quotaTotal) * 100}%` }} />
             </div>
-            <div className="mt-3 text-sm text-slate-500">{quotaRemaining} pages remaining this period.</div>
-            <div className="mt-4 border border-line bg-mist-50 px-4 py-3 text-sm text-slate-600">
-              Pending or unreleased files are purged after {profile.retentionHours} hours.
-            </div>
+            <div className="mt-3 text-sm text-slate-500">Used {profile.quotaUsed} of {profile.quotaTotal} pages.</div>
+            <div className="mt-2 text-sm text-slate-500">Held files clear after {profile.retentionHours} hours.</div>
           </div>
         </section>
       </div>
@@ -87,8 +84,7 @@ export function PortalDashboardScreen() {
 
         <section className="ui-panel overflow-hidden">
           <div className="border-b border-line bg-mist-50/80 px-5 py-4">
-            <div className="text-base font-semibold text-ink-950">Active job actions</div>
-            <div className="mt-1 text-sm text-slate-500">Cancel pending jobs before release or watch jobs already in progress.</div>
+            <div className="text-base font-semibold text-ink-950">Active jobs</div>
           </div>
           <div className="px-5 py-3">
             {activeJobs.length === 0 ? <div className="py-8 text-sm text-slate-500">No active jobs right now.</div> : activeJobs.map((job) => <DashboardActiveJob key={job.id} job={job} onCancel={handleCancel} />)}

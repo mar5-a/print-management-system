@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AdminShell } from '@/app/layouts/admin-shell'
+import { TechShell } from '@/app/layouts/tech-shell'
 import { UserShell } from '@/app/layouts/user-shell'
 import { DashboardScreen } from '@/features/admin/dashboard/dashboard-screen'
 import { GroupDetailScreen } from '@/features/admin/groups/group-detail-screen'
@@ -18,6 +19,12 @@ import {
 } from '@/features/admin/system'
 import { UserDetailScreen } from '@/features/admin/users/user-detail-screen'
 import { UsersScreen } from '@/features/admin/users/users-screen'
+import { TechAlertDetailScreen } from '@/features/technician/alerts/alert-detail-screen'
+import { TechAlertsScreen } from '@/features/technician/alerts/alerts-screen'
+import { TechDashboardScreen } from '@/features/technician/dashboard/dashboard-screen'
+import { TechPrintersScreen } from '@/features/technician/printers/printers-screen'
+import { TechUserDetailScreen } from '@/features/technician/users/user-detail-screen'
+import { TechUsersScreen } from '@/features/technician/users/users-screen'
 import { PortalDashboardScreen } from '@/features/portal/dashboard/dashboard-screen'
 import { PortalHistoryScreen } from '@/features/portal/history/history-screen'
 import { PortalSubmitJobScreen } from '@/features/portal/submit-job/submit-job-screen'
@@ -50,6 +57,15 @@ export function AppRouter() {
         <Route path="options" element={<OptionsScreen />} />
         <Route path="logs" element={<LogsScreen />} />
         <Route path="about" element={<AboutScreen />} />
+      </Route>
+      <Route path="/tech" element={<TechShell />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<TechDashboardScreen />} />
+        <Route path="users" element={<TechUsersScreen />} />
+        <Route path="users/:userId" element={<TechUserDetailScreen />} />
+        <Route path="printers" element={<TechPrintersScreen />} />
+        <Route path="alerts" element={<TechAlertsScreen />} />
+        <Route path="alerts/:alertId" element={<TechAlertDetailScreen />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

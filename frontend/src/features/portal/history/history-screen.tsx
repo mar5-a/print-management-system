@@ -5,7 +5,14 @@ import { formatUsd } from '@/lib/formatters'
 import { PortalJobStatusBadge } from '@/features/portal/shared/components'
 import { cancelHistoryJob, listHistoryJobs } from './api'
 import { usePortalHistoryFilters } from './use-portal-history-filters'
+import type { PortalPrintJob } from '@/types/portal'
 import type { PortalJobStatus } from '@/types/portal'
+
+function getHistoryMessage(job: PortalPrintJob) {
+  if (job.status === 'Completed') return 'Saved in your history.'
+  if (job.retentionDeadline) return `Held files purge at ${job.retentionDeadline}.`
+  return job.details
+}
 
 export function PortalHistoryScreen() {
   const [jobs, setJobs] = useState(() => listHistoryJobs())
@@ -23,7 +30,7 @@ export function PortalHistoryScreen() {
       <section className="ui-panel mb-5 overflow-hidden">
         <div className="border-b border-line bg-mist-50/80 px-5 py-4">
           <div className="text-base font-semibold text-ink-950">Your print history</div>
-          <div className="mt-1 text-sm text-slate-500">Only your own records are shown. Each entry includes the metadata required by the SRS.</div>
+          <div className="mt-1 text-sm text-slate-500">Only your own records are shown.</div>
         </div>
         <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-4">
           <label>
@@ -68,19 +75,31 @@ export function PortalHistoryScreen() {
               <div className="flex flex-col gap-4 border-b border-line bg-mist-50/70 px-5 py-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <div className="text-base font-semibold text-ink-950">{job.fileName}</div>
-                  <div className="mt-1 text-sm text-slate-500">{job.id} · {job.submittedAt} · {job.queueName}</div>
+                  <div className="mt-1 text-sm text-slate-500">{job.submittedAt} · {job.queueName}</div>
+                  <div className="mt-1 font-mono text-xs text-slate-500">{job.id}</div>
                 </div>
                 <PortalJobStatusBadge status={job.status} />
               </div>
-              <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-5">
-                <div><div className="ui-heading">Device</div><div className="mt-2 text-sm text-ink-950">{job.printerName}</div></div>
-                <div><div className="ui-heading">Pages</div><div className="mt-2 text-sm text-ink-950">{job.pages} × {job.copies} = {job.totalPages}</div></div>
-                <div><div className="ui-heading">Output</div><div className="mt-2 text-sm text-ink-950">{job.colorMode} · {job.duplex ? 'Duplex' : 'Single-sided'}</div></div>
-                <div><div className="ui-heading">Cost</div><div className="mt-2 text-sm text-ink-950">{formatUsd(job.cost)}</div></div>
-                <div><div className="ui-heading">Paper</div><div className="mt-2 text-sm text-ink-950">{job.paperType}</div></div>
+              <div className="grid gap-4 px-5 py-5 md:grid-cols-3">
+                <div>
+                  <div className="ui-heading">Device</div>
+                  <div className="mt-2 text-sm font-medium text-ink-950">{job.printerName}</div>
+                </div>
+                <div>
+                  <div className="ui-heading">Total pages</div>
+                  <div className="mt-2 text-sm font-medium text-ink-950">{job.totalPages}</div>
+                  <div className="mt-1 text-sm text-slate-500">{job.pages} pages × {job.copies} copies</div>
+                </div>
+                <div>
+                  <div className="ui-heading">Cost</div>
+                  <div className="mt-2 text-sm font-medium text-ink-950">{formatUsd(job.cost)}</div>
+                </div>
+                <div className="md:col-span-3">
+                  <div className="text-sm text-slate-500">{job.colorMode} · {job.duplex ? 'Duplex' : 'Single-sided'} · {job.paperType}</div>
+                </div>
               </div>
               <div className="flex flex-col gap-3 border-t border-line px-5 py-4 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-slate-500">{job.retentionDeadline ? `Held files purge at ${job.retentionDeadline}.` : job.details}</div>
+                <div className="text-sm text-slate-500">{getHistoryMessage(job)}</div>
                 {job.status === 'Pending Release' ? <button type="button" className="ui-button-secondary px-3 py-1.5" onClick={() => handleCancel(job.id)}>Cancel pending job</button> : null}
               </div>
             </section>

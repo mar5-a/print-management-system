@@ -1,10 +1,8 @@
 import { motion } from 'framer-motion'
 import {
-  Clock3,
   FileClock,
   LayoutDashboard,
   Printer,
-  ShieldCheck,
   Upload,
 } from 'lucide-react'
 import { NavLink, useLocation, useOutlet } from 'react-router-dom'
@@ -31,11 +29,9 @@ export function UserShell() {
           <div className="flex items-center gap-3 font-medium">
             <Printer className="size-3.5" />
             <span>Print Portal</span>
-            <span className="hidden text-white/60 sm:inline">Standard user workspace</span>
           </div>
           <div className="flex items-center gap-3 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/75">
-            <span>Retention 24h</span>
-            <span className="hidden sm:inline">AD linked</span>
+            <span>{portalUserProfile.department}</span>
           </div>
         </div>
       </div>
@@ -45,9 +41,6 @@ export function UserShell() {
           <div className="border-b border-line pb-5">
             <div className="ui-kicker">Your Portal</div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">Print Portal</div>
-            <p className="mt-2 max-w-[16rem] text-sm text-slate-500">
-              Submit jobs, watch quota usage, and review your own print records.
-            </p>
           </div>
 
           <nav className="mt-6 flex-1 space-y-1.5">
@@ -100,20 +93,10 @@ export function UserShell() {
           <header className="border-b border-line/80 bg-white/75 backdrop-blur">
             <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <div className="ui-kicker">{sectionTitle}</div>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">
-                  Your personal print management overview
-                </h1>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                <div className="inline-flex items-center gap-2 border border-line bg-white px-3 py-2">
-                  <ShieldCheck className="size-4 text-accent-600" />
-                  Own records only
-                </div>
-                <div className="inline-flex items-center gap-2 border border-line bg-white px-3 py-2">
-                  <Clock3 className="size-4 text-sky-600" />
-                  History within two clicks
+                <div className="ui-kicker">Portal</div>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">{sectionTitle}</h1>
+                <div className="mt-1 text-sm text-slate-500">
+                  {portalUserProfile.displayName} · {portalUserProfile.role}
                 </div>
               </div>
             </div>

@@ -13,7 +13,7 @@ export function PortalMetric({
 }: {
   label: string
   value: string
-  hint: string
+  hint?: string
 }) {
   return (
     <section className="ui-panel overflow-hidden">
@@ -21,7 +21,7 @@ export function PortalMetric({
       <div className="px-4 py-4">
         <div className="ui-heading">{label}</div>
         <div className="mt-3 text-3xl font-semibold tracking-tight text-ink-950">{value}</div>
-        <div className="mt-1 text-sm text-slate-500">{hint}</div>
+        {hint ? <div className="mt-1 text-sm text-slate-500">{hint}</div> : null}
       </div>
     </section>
   )
@@ -73,7 +73,6 @@ export function PortalQueueCard({
       </div>
       <div className={`mt-3 flex flex-wrap gap-3 text-sm ${selected ? 'text-white/75' : 'text-slate-500'}`}>
         <span>{queue.releaseMode}</span>
-        <span>{queue.pendingJobs} jobs queued</span>
         <span>{queue.colorMode}</span>
       </div>
       {!queue.available && queue.reason ? <div className="mt-3 text-sm font-medium text-danger-500">{queue.reason}</div> : null}
@@ -93,14 +92,17 @@ export function DashboardActiveJob({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-ink-950">{job.fileName}</div>
-          <div className="mt-1 text-sm text-slate-500">
-            {job.id} · {job.totalPages} pages · {formatUsd(job.cost)}
-          </div>
+          <div className="mt-1 text-sm text-slate-500">{job.queueName} · {job.printerName}</div>
+          <div className="mt-1 font-mono text-xs text-slate-500">{job.id}</div>
         </div>
         <PortalJobStatusBadge status={job.status} />
       </div>
-      <div className="mt-2 text-sm text-slate-500">{job.details}</div>
-      {job.retentionDeadline ? <div className="mt-2 text-sm text-slate-500">Auto-purge deadline: {job.retentionDeadline}</div> : null}
+      <div className="mt-2 text-sm text-slate-500">
+        {job.totalPages} pages · {formatUsd(job.cost)}
+      </div>
+      <div className="mt-2 text-sm text-slate-500">
+        {job.retentionDeadline ? `Held until ${job.retentionDeadline}.` : job.details}
+      </div>
       {job.status === 'Pending Release' ? (
         <div className="mt-3">
           <button type="button" className="ui-button-secondary px-3 py-1.5" onClick={() => onCancel(job.id)}>
@@ -116,13 +118,10 @@ export function RecentPortalJobsTable({ jobs }: { jobs: PortalPrintJob[] }) {
   return (
     <section className="ui-panel overflow-hidden">
       <div className="flex items-center justify-between gap-4 border-b border-line bg-mist-50/80 px-5 py-4">
-        <div>
-          <div className="text-base font-semibold text-ink-950">Recent jobs</div>
-          <div className="mt-1 text-sm text-slate-500">Your most recent submissions and final statuses.</div>
-        </div>
+        <div className="text-base font-semibold text-ink-950">Recent jobs</div>
         <Link className="ui-button-secondary px-3 py-1.5" to="/portal/history">
           <FileClock className="size-4" />
-          Full history
+          History
         </Link>
       </div>
       <div className="px-5 py-4">
@@ -139,19 +138,24 @@ export function RecentPortalJobsTable({ jobs }: { jobs: PortalPrintJob[] }) {
               ),
             },
             {
+              key: 'submitted',
+              header: 'Submitted',
+              render: (job) => (
+                <div>
+                  <div className="text-sm font-medium text-ink-950">{job.submittedAt}</div>
+                  <div className="mt-1 text-sm text-slate-500">{job.queueName}</div>
+                </div>
+              ),
+            },
+            {
               key: 'device',
-              header: 'Queue/device',
-              render: (job) => <span className="text-sm text-slate-600">{job.queueName} · {job.printerName}</span>,
+              header: 'Device',
+              render: (job) => <span className="text-sm text-slate-600">{job.printerName}</span>,
             },
             {
-              key: 'pages',
-              header: 'Pages',
-              render: (job) => <span className="text-sm text-slate-600">{job.totalPages}</span>,
-            },
-            {
-              key: 'cost',
-              header: 'Cost',
-              render: (job) => <span className="text-sm text-slate-600">{formatUsd(job.cost)}</span>,
+              key: 'total',
+              header: 'Total',
+              render: (job) => <span className="text-sm text-slate-600">{job.totalPages} pages · {formatUsd(job.cost)}</span>,
             },
             {
               key: 'status',
