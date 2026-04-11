@@ -92,9 +92,9 @@ The current milestone uses mock data to simulate user actions and interface beha
 ## Team Members and Roles
 
 - `Mohammed Ammar Sohail` - `Backend + Embedded devices`
-- `Ahmed Alnasser` - `Backend / Embedded Deviced / Responsibility`
-- `Moaz Ahmed` - `Frontend`
-- `Ayman Musalli` - `Frontend / UI-UX Design`
+- `Ahmed Alnasser` - `Backend + Embedded Deviced / Responsibility`
+- `Moaz Ahmed` - `Frontend + UI/UX Design`
+- `Ayman Musalli` - `Frontend + UI/UX Design`
 
 ## Notes
 
