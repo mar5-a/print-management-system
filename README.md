@@ -91,18 +91,10 @@ The current milestone uses mock data to simulate user actions and interface beha
 
 ## Team Members and Roles
 
-Update this section before final submission.
-
-- `Member Name` - `Role / Responsibility`
-- `Member Name` - `Role / Responsibility`
-- `Member Name` - `Role / Responsibility`
-- `Member Name` - `Role / Responsibility`
-
-## Figma Reference
-
-Add your Figma prototype or reference file link here before submission.
-
-- Figma link: `PASTE_LINK_HERE`
+- `Mohammed Ammar Sohail` - `Backend + Embedded devices`
+- `Ahmed Alnasser` - `Backend / Embedded Deviced / Responsibility`
+- `Moaz Ahmed` - `Frontend`
+- `Ayman Musalli` - `Frontend / UI-UX Design`
 
 ## Notes
 
