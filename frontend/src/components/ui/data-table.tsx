@@ -36,7 +36,7 @@ export function DataTable<T>({
                   {column.header}
                 </th>
               ))}
-              {onRowClick ? <th className="ui-table-head w-14 text-right">Open</th> : null}
+              {onRowClick ? <th className="ui-table-head w-14 text-right"></th> : null}
             </tr>
           </thead>
           <tbody>
