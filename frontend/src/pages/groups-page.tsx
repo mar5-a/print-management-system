@@ -160,7 +160,6 @@ export function GroupDetailPage() {
 
         <DetailActionBar>
           <button className="ui-button-ghost">Cancel</button>
-          <button className="ui-button-secondary">OK</button>
           <button className="ui-button">Apply</button>
         </DetailActionBar>
       </DetailPanel>

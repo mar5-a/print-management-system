@@ -361,7 +361,6 @@ export function OptionsPage() {
 
         <div className="flex justify-end gap-2 px-5 py-4">
           <button className="ui-button-ghost">Cancel</button>
-          <button className="ui-button-secondary">OK</button>
           <button className="ui-button">Apply</button>
         </div>
       </section>
