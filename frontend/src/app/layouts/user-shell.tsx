@@ -24,7 +24,7 @@ export function UserShell() {
 
   return (
     <div className="min-h-screen bg-transparent text-ink-950 lg:h-screen lg:overflow-hidden">
-      <div className="h-9 border-b border-sky-600/20 bg-ink-950 text-[0.78rem] text-white">
+      <div className="h-9 border-b border-accent-600/20 bg-accent-700 text-[0.78rem] text-white">
         <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3 font-medium">
             <Printer className="size-3.5" />
@@ -37,10 +37,10 @@ export function UserShell() {
       </div>
 
       <div className="grid min-h-[calc(100vh-2.25rem)] max-w-[1600px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[232px_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="flex flex-col border-b border-line/70 bg-white/70 px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
+        <aside className="flex flex-col border-b border-line/70 bg-[#111827] px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
           <div className="border-b border-line pb-5">
-            <div className="ui-kicker">Your Portal</div>
-            <div className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">Print Portal</div>
+            <div className="ui-kicker text-slate-300">Your Portal</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-white">Print Portal</div>
           </div>
 
           <nav className="mt-6 flex-1 space-y-1.5">
@@ -53,7 +53,7 @@ export function UserShell() {
                     'relative flex items-center gap-3 overflow-hidden border px-3 py-3 text-sm font-medium transition',
                     isActive
                       ? 'border-ink-950 bg-ink-950 text-white'
-                      : 'border-transparent text-slate-600 hover:border-line hover:bg-white hover:text-ink-950',
+                      : 'border-transparent text-slate-300 hover:border-line hover:bg-slate-700 hover:text-white',
                   )
                 }
               >
@@ -73,12 +73,12 @@ export function UserShell() {
             ))}
           </nav>
 
-          <div className="mt-auto border-t border-line pt-5">
-            <div className="ui-kicker">Signed in</div>
+          <div className="mt-auto border-t border-slate-600 pt-5">
+            <div className="ui-kicker text-slate-300">Signed in</div>
             <div className="mt-2 flex items-start justify-between gap-3">
               <div>
-                <div className="font-semibold text-ink-950">{portalUserProfile.displayName}</div>
-                <div className="text-sm text-slate-500">
+                <div className="font-semibold text-white">{portalUserProfile.displayName}</div>
+                <div className="text-sm text-slate-400">
                   {portalUserProfile.role} · {portalUserProfile.department}
                 </div>
               </div>

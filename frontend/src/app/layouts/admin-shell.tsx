@@ -58,12 +58,12 @@ export function AdminShell() {
       </div>
 
       <div className="grid min-h-[calc(100vh-2.25rem)] max-w-[1800px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[248px_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="flex flex-col border-b border-line/70 bg-white/70 px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
+        <aside className="flex flex-col border-b border-line/70 bg-[#111827] px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
           <div className="flex items-start justify-between gap-4 border-b border-line pb-5">
             <div>
-              <div className="ui-kicker">Print Management</div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-ink-950">CCM Admin</div>
-              <p className="mt-2 max-w-[16rem] text-sm text-slate-500">Operations console</p>
+              <div className="ui-kicker text-slate-300">Print Management</div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight text-white">CCM Admin</div>
+              <p className="mt-2 max-w-[16rem] text-sm text-slate-400">Operations console</p>
             </div>
             <DatabaseZap className="mt-1 size-5 text-accent-500" />
           </div>
@@ -78,7 +78,7 @@ export function AdminShell() {
                     'relative flex items-center gap-3 overflow-hidden border px-3 py-3 text-sm font-medium transition',
                     isActive
                       ? 'border-ink-950 bg-ink-950 text-white'
-                      : 'border-transparent text-slate-600 hover:border-line hover:bg-white hover:text-ink-950',
+                      : 'border-transparent text-slate-300 hover:border-line hover:bg-slate-700 hover:text-white',
                   )
                 }
               >
@@ -99,12 +99,12 @@ export function AdminShell() {
             ))}
           </nav>
 
-          <div className="mt-auto border-t border-line pt-5">
-            <div className="ui-kicker">Operator</div>
+          <div className="mt-auto border-t border-slate-600 pt-5">
+            <div className="ui-kicker text-slate-300">Operator</div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <div>
-                <div className="font-semibold text-ink-950">David Admin</div>
-                <div className="text-slate-500">Operations</div>
+                <div className="font-semibold text-white">David Admin</div>
+                <div className="text-slate-400">Operations</div>
               </div>
               <div className="rounded-full bg-accent-100 px-2.5 py-1 text-[0.7rem] font-semibold text-accent-700">
                 Online
