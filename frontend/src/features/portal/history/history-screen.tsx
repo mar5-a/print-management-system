@@ -30,7 +30,7 @@ export function PortalHistoryScreen() {
       <section className="ui-panel mb-5 overflow-hidden">
         <div className="border-b border-line bg-mist-50/80 px-5 py-4">
           <div className="text-base font-semibold text-ink-950">Your print history</div>
-          <div className="mt-1 text-sm text-slate-500">Only your own records are shown.</div>
+          <div className="mt-1 text-sm text-slate-500">Only your own records are shown, including supplementary web uploads and jobs routed from your assigned campus queue.</div>
         </div>
         <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-4">
           <label>

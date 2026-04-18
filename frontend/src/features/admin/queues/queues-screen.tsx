@@ -70,7 +70,7 @@ export function QueuesScreen() {
       <PageHeader
         eyebrow="Queues"
         title="Queue management"
-        description="Dedicated queue CRUD, assignment, hold/release policy, and deletion-safety surface for the admin console."
+        description="Dedicated queue CRUD, printer assignment, retention policy, and deletion-safety surface for the admin console."
       />
 
       {isCreateOpen ? <QueueCreatePanel draft={draft} onCancel={() => { resetDraft(); setCreateOpen(false) }} onSubmit={handleCreateQueue} setDraft={setDraft} toggleDraftSelection={toggleDraftSelection} /> : null}

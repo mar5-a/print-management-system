@@ -41,7 +41,7 @@ export function QueueCreatePanel({
               </select>
             </label>
             <label>
-              <div className="ui-heading">Release mode</div>
+              <div className="ui-heading">Recorded release path</div>
               <select className="ui-select mt-2 w-full" value={draft.releaseMode} onChange={(event) => setDraft((current) => ({ ...current, releaseMode: event.target.value as QueueReleaseMode }))}>
                 <option>Secure Release</option><option>Immediate</option><option>Kiosk Release</option>
               </select>
@@ -49,6 +49,9 @@ export function QueueCreatePanel({
             <label><div className="ui-heading">Department</div><input className="ui-input mt-2" value={draft.department} onChange={(event) => setDraft((current) => ({ ...current, department: event.target.value }))} /></label>
             <label className="flex items-center gap-3 pt-7"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} /><span className="text-sm text-ink-950">Queue enabled on creation</span></label>
             <label className="lg:col-span-2"><div className="ui-heading">Description</div><textarea className="ui-textarea mt-2" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Describe queue purpose, restriction scope, and routing assumptions." /></label>
+            <div className="rounded-none border border-line bg-mist-50 px-4 py-4 text-sm text-slate-600 lg:col-span-2">
+              This field records the planned release path for the queue. Actual secure release still depends on printer-side software and device capabilities.
+            </div>
           </div>
         </div>
 

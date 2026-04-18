@@ -7,6 +7,7 @@ export const portalUserProfile: PortalUserProfile = {
   username: 'john.smith',
   department: 'Computer Science',
   role: 'Student',
+  assignedQueueId: 'que-01',
   quotaUsed: 140,
   quotaTotal: 1000,
   retentionHours: 24,
@@ -138,10 +139,13 @@ export function cancelPortalJob(jobId: string) {
 }
 
 export function createPortalJob(draft: PortalSubmissionDraft) {
-  const availableQueues = listPortalQueuesForCurrentUser()
-  const selectedQueue = availableQueues.find((queue) => queue.id === draft.queueId)
+  const selectedQueue = getDefaultPortalQueueForCurrentUser()
 
   if (!selectedQueue || !selectedQueue.available) {
+    return undefined
+  }
+
+  if (draft.colorMode === 'Color' && selectedQueue.colorMode !== 'Color') {
     return undefined
   }
 
@@ -166,7 +170,7 @@ export function createPortalJob(draft: PortalSubmissionDraft) {
     cost,
     status: 'Pending Release',
     retentionDeadline: '2026-04-08 10:20',
-    details: `Queued on ${selectedQueue.name} and waiting for release at ${selectedQueue.printerName}.`,
+    details: `Submitted through the supplementary web portal to ${selectedQueue.name} and waiting for release at ${selectedQueue.printerName}.`,
   }
 
   portalJobsData = [createdJob, ...portalJobsData]
@@ -179,8 +183,10 @@ export function createPortalJob(draft: PortalSubmissionDraft) {
 export function listPortalQueuesForCurrentUser() {
   const role = portalUserProfile.role
   const printerById = new Map(adminPrinters.map((printer) => [printer.id, printer]))
+  const adminQueues = listAdminQueues()
+  const defaultQueueId = portalUserProfile.assignedQueueId
 
-  const mappedQueues = listAdminQueues().map<PortalQueueOption>((queue) => {
+  const mappedQueues = adminQueues.map<PortalQueueOption>((queue) => {
     const assignedPrinter = queue.printerIds
       .map((printerId) => printerById.get(printerId))
       .find(Boolean)
@@ -208,12 +214,18 @@ export function listPortalQueuesForCurrentUser() {
       access: queue.audience,
       colorMode: queue.colorMode,
       available,
+      isDefault: queue.id === defaultQueueId,
+      submissionPath: queue.id === defaultQueueId ? 'Default web upload route' : 'Eligible campus queue',
       reason,
       costPerPage: queue.costPerPage,
     }
   })
 
   return mappedQueues
+}
+
+export function getDefaultPortalQueueForCurrentUser() {
+  return listPortalQueuesForCurrentUser().find((queue) => queue.isDefault)
 }
 
 export function getPortalWeeklyUsage() {

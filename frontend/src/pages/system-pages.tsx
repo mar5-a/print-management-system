@@ -23,6 +23,9 @@ interface DeviceRow {
   hostname: string
   printer: string
   location: string
+  integration: string
+  authSurface: string
+  heartbeat: string
   status: 'Online' | 'Offline' | 'Maintenance'
 }
 
@@ -36,7 +39,7 @@ interface ReportRow {
 
 interface LogRow {
   id: string
-  type: 'Audit' | 'Error' | 'Queue' | 'Auth'
+  type: 'Audit' | 'Device' | 'Release' | 'Auth'
   subject: string
   actor: string
   time: string
@@ -60,10 +63,10 @@ const sharedAccounts: SharedAccountRow[] = [
 ]
 
 const devices: DeviceRow[] = [
-  { id: 'dev-01', hostname: 'ccm-print-a1', printer: 'Printer A1', location: 'Building A, Floor 1', status: 'Online' },
-  { id: 'dev-02', hostname: 'ccm-print-b2', printer: 'Printer B2', location: 'Building B, Floor 2', status: 'Online' },
-  { id: 'dev-03', hostname: 'ccm-print-c3', printer: 'Printer C3', location: 'Building C, Floor 3', status: 'Maintenance' },
-  { id: 'dev-04', hostname: 'ccm-print-d1', printer: 'Printer D1', location: 'Library, Ground Floor', status: 'Offline' },
+  { id: 'dev-01', hostname: 'ccm-print-a1', printer: 'Printer A1', location: 'Building A, Floor 1', integration: 'Embedded release client', authSurface: 'Card or credentials', heartbeat: '30 seconds ago', status: 'Online' },
+  { id: 'dev-02', hostname: 'ccm-print-b2', printer: 'Printer B2', location: 'Building B, Floor 2', integration: 'Embedded release client', authSurface: 'Card or credentials', heartbeat: '1 minute ago', status: 'Online' },
+  { id: 'dev-03', hostname: 'ccm-print-c3', printer: 'Printer C3', location: 'Building C, Floor 3', integration: 'Embedded release client', authSurface: 'Credentials fallback', heartbeat: '12 minutes ago', status: 'Maintenance' },
+  { id: 'dev-04', hostname: 'ccm-print-d1', printer: 'Printer D1', location: 'Library, Ground Floor', integration: 'Device connector pending', authSurface: 'Unavailable while offline', heartbeat: '22 minutes ago', status: 'Offline' },
 ]
 
 const reports: ReportRow[] = [
@@ -74,17 +77,18 @@ const reports: ReportRow[] = [
 
 const logEntries: LogRow[] = [
   { id: 'log-01', type: 'Audit', subject: 'Quota policy updated for CCM-Students', actor: 'david.admin', time: 'Today 09:12' },
-  { id: 'log-02', type: 'Queue', subject: '11 held jobs redirected from Printer D1', actor: 'sarah.tech', time: 'Today 08:44' },
-  { id: 'log-03', type: 'Error', subject: 'Printer C3 entered maintenance mode', actor: 'system', time: 'Today 08:11' },
+  { id: 'log-02', type: 'Release', subject: '11 held jobs remain visible after Printer D1 outage', actor: 'system', time: 'Today 08:44' },
+  { id: 'log-03', type: 'Device', subject: 'Printer C3 entered maintenance mode after repeated feed alerts', actor: 'system', time: 'Today 08:11' },
   { id: 'log-04', type: 'Auth', subject: 'Directory sync completed successfully', actor: 'system', time: 'Today 07:42' },
+  { id: 'log-05', type: 'Auth', subject: 'Printer A1 accepted 27 secure-release authentications', actor: 'device-agent', time: 'Today 07:35' },
 ]
 
 const recentPrintLogs: PrintLogRow[] = [
-  { id: 'print-01', date: '2026-04-06 09:45', user: 'John Doe', department: 'Engineering', device: 'Floor 1 Printer', pages: 25, cost: '$1.25', status: 'Completed' },
-  { id: 'print-02', date: '2026-04-06 09:32', user: 'Jane Smith', department: 'Marketing', device: 'Floor 2 Printer', pages: 50, cost: '$2.50', status: 'Completed' },
-  { id: 'print-03', date: '2026-04-06 09:15', user: 'Bob Wilson', department: 'Sales', device: 'Floor 3 Printer', pages: 12, cost: '$0.60', status: 'Failed' },
-  { id: 'print-04', date: '2026-04-06 08:50', user: 'Alice Brown', department: 'HR', device: 'Floor 1 Printer', pages: 8, cost: '$0.40', status: 'Completed' },
-  { id: 'print-05', date: '2026-04-06 08:30', user: 'Charlie Davis', department: 'Finance', device: 'Basement Printer', pages: 35, cost: '$1.75', status: 'Held' },
+  { id: 'print-01', date: '2026-04-06 09:45', user: 'John Doe', department: 'Engineering', device: 'Printer A1', pages: 25, cost: '$1.25', status: 'Completed' },
+  { id: 'print-02', date: '2026-04-06 09:32', user: 'Jane Smith', department: 'Marketing', device: 'Printer B2', pages: 50, cost: '$2.50', status: 'Completed' },
+  { id: 'print-03', date: '2026-04-06 09:15', user: 'Bob Wilson', department: 'Sales', device: 'Printer C3', pages: 12, cost: '$0.60', status: 'Failed' },
+  { id: 'print-04', date: '2026-04-06 08:50', user: 'Alice Brown', department: 'HR', device: 'Printer A1', pages: 8, cost: '$0.40', status: 'Completed' },
+  { id: 'print-05', date: '2026-04-06 08:30', user: 'Charlie Davis', department: 'Finance', device: 'Printer D1', pages: 35, cost: '$1.75', status: 'Held' },
 ]
 
 function StatusText({ status }: { status: DeviceRow['status'] }) {
@@ -240,7 +244,7 @@ export function DevicesPage() {
 
   return (
     <div className="min-w-0">
-      <PageHeader eyebrow="Devices" title="Registered devices" description="Thin device inventory aligned with the printer fleet." />
+      <PageHeader eyebrow="Devices" title="Physical devices" description="Physical MFPs and embedded release clients, kept separate from logical printer and queue records." />
 
       <FilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search devices">
         <button className="ui-button-action px-3 py-2">
@@ -262,8 +266,11 @@ export function DevicesPage() {
         <DataTable<DeviceRow>
           columns={[
             { key: 'hostname', header: 'Hostname', render: (row) => <span className="ui-table-secondary-mono">{row.hostname}</span> },
-            { key: 'printer', header: 'Printer', render: (row) => <span className="ui-table-primary">{row.printer}</span> },
+            { key: 'printer', header: 'Linked printer', render: (row) => <span className="ui-table-primary">{row.printer}</span> },
             { key: 'location', header: 'Location', render: (row) => <span className="ui-table-secondary">{row.location}</span> },
+            { key: 'integration', header: 'Integration', render: (row) => <span className="ui-table-secondary">{row.integration}</span> },
+            { key: 'auth-surface', header: 'Auth surface', render: (row) => <span className="ui-table-secondary">{row.authSurface}</span> },
+            { key: 'heartbeat', header: 'Last heartbeat', render: (row) => <span className="ui-table-secondary">{row.heartbeat}</span> },
             { key: 'status', header: 'Status', render: (row) => <StatusText status={row.status} /> },
           ]}
           rows={filteredDevices}
@@ -271,6 +278,16 @@ export function DevicesPage() {
           emptyLabel="No devices match the current search."
         />
       </div>
+
+      <section className="ui-panel mt-5 overflow-hidden">
+        <div className="border-b border-line px-5 py-4">
+          <div className="text-base font-semibold text-ink-950">Why devices are separate</div>
+        </div>
+        <div className="space-y-3 px-5 py-5 text-sm text-slate-600">
+          <p>Devices represent the physical machine and any embedded release software installed on it.</p>
+          <p>Printers and queues remain the logical records used for routing, policy, and backlog visibility.</p>
+        </div>
+      </section>
     </div>
   )
 }
@@ -371,15 +388,15 @@ export function OptionsPage() {
 export function LogsPage() {
   return (
     <div className="min-w-0">
-      <PageHeader eyebrow="Logs" title="Audit and print logs" description="Recent print activity with high-level filters and system activity below." />
+      <PageHeader eyebrow="Logs" title="Audit and operational logs" description="Print outcomes, release/auth activity, device faults, and audit events kept together for troubleshooting." />
 
       <AdvancedFilters />
 
       <section className="ui-panel overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-line px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-2xl font-semibold tracking-tight text-ink-950">Recent print logs</div>
-            <div className="mt-2 text-sm text-slate-500">Overview of recent printing activity</div>
+            <div className="text-2xl font-semibold tracking-tight text-ink-950">Print and release activity</div>
+            <div className="mt-2 text-sm text-slate-500">Recent print outcomes with held-job visibility for operations review.</div>
           </div>
           <button className="ui-button">
             <Download className="size-4" />
@@ -389,8 +406,8 @@ export function LogsPage() {
 
         <div className="grid gap-4 border-b border-line px-5 py-5 md:grid-cols-3">
           <OverviewMetric label="Total jobs" value="5" tone="blue" />
-          <OverviewMetric label="Total pages" value="130" tone="violet" />
-          <OverviewMetric label="Total cost" value="$6.50" tone="green" />
+          <OverviewMetric label="Held for release" value="1" tone="violet" />
+          <OverviewMetric label="Device/auth events" value="5" tone="green" />
         </div>
 
         <div className="px-5 py-4">
@@ -429,7 +446,7 @@ export function LogsPage() {
 
       <section className="ui-panel mt-5 overflow-hidden">
         <div className="border-b border-line px-5 py-4">
-          <div className="text-base font-semibold text-ink-950">System activity</div>
+          <div className="text-base font-semibold text-ink-950">Operational events</div>
         </div>
         <div className="px-5 py-4">
           <DataTable<LogRow>

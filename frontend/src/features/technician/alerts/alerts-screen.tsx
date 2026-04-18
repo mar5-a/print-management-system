@@ -40,7 +40,7 @@ export function TechAlertsScreen() {
 
   return (
     <div className="min-w-0">
-      <PageHeader eyebrow="Alerts" title="System alerts" />
+      <PageHeader eyebrow="Alerts" title="System alerts" description="Printer, device, and directory events that require technician review. Configuration changes remain outside this surface." />
 
       <FilterBar
         searchValue={search}

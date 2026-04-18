@@ -9,6 +9,7 @@ export interface PortalUserProfile {
   username: string
   department: string
   role: PortalUserRole
+  assignedQueueId: string
   quotaUsed: number
   quotaTotal: number
   retentionHours: number
@@ -25,6 +26,8 @@ export interface PortalQueueOption {
   access: QueueAccessScope
   colorMode: string
   available: boolean
+  isDefault: boolean
+  submissionPath: string
   reason?: string
   costPerPage: number
 }
@@ -49,7 +52,6 @@ export interface PortalPrintJob {
 
 export interface PortalSubmissionDraft {
   fileName: string
-  queueId: string
   pages: number
   copies: number
   colorMode: 'Black & White' | 'Color'

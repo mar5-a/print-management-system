@@ -51,12 +51,12 @@ export function TechDashboardScreen() {
 
   return (
     <div className="min-w-0">
-      <PageHeader eyebrow="Dashboard" title="Shift overview" />
+      <PageHeader eyebrow="Dashboard" title="Shift overview" description="Operational view for alerts, device health, and queue backlog. Configuration stays with administrators." />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <ShiftStat label="Active users" value={snapshot.activeUsers} tone="accent" icon={<Users className="size-5" />} />
-        <ShiftStat label="Suspended" value={snapshot.suspendedUsers} tone="danger" icon={<Ban className="size-5" />} />
-        <ShiftStat label="Pending jobs" value={snapshot.pendingJobs} tone="warn" icon={<Clock3 className="size-5" />} />
+        <ShiftStat label="Problem devices" value={snapshot.problemPrinters} tone="danger" icon={<AlertTriangle className="size-5" />} />
+        <ShiftStat label="Active alerts" value={snapshot.unacknowledgedAlerts} tone="warn" icon={<Bell className="size-5" />} />
+        <ShiftStat label="Held jobs" value={snapshot.pendingJobs} tone="sky" icon={<Clock3 className="size-5" />} />
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
@@ -78,6 +78,11 @@ export function TechDashboardScreen() {
                   render: (p) => <span className="ui-table-secondary">{p.location}</span>,
                 },
                 {
+                  key: 'queue',
+                  header: 'Queue',
+                  render: (p) => <span className="ui-table-secondary">{p.queue}</span>,
+                },
+                {
                   key: 'status',
                   header: 'Status',
                   render: (p) => (
@@ -96,7 +101,7 @@ export function TechDashboardScreen() {
                 },
                 {
                   key: 'pending',
-                  header: 'Pending',
+                  header: 'Held jobs',
                   render: (p) => <span className="ui-table-secondary">{p.pendingJobs}</span>,
                 },
               ]}
@@ -145,13 +150,19 @@ export function TechDashboardScreen() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-ink-950">{alert.title}</div>
-                      <div className="mt-1 text-xs text-slate-500">{alert.createdAt}</div>
+                      <div className="mt-1 text-xs text-slate-500">{alert.deviceName ?? alert.source} · {alert.createdAt}</div>
                     </div>
                   </div>
                 ))
             )}
           </div>
         </section>
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ShiftStat label="Active users" value={snapshot.activeUsers} tone="accent" icon={<Users className="size-5" />} />
+        <ShiftStat label="Suspended" value={snapshot.suspendedUsers} tone="danger" icon={<Ban className="size-5" />} />
+        <ShiftStat label="Online devices" value={snapshot.onlinePrinters} tone="accent" icon={<CheckCircle2 className="size-5" />} />
       </div>
     </div>
   )

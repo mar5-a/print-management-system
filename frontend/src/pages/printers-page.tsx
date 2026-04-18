@@ -10,6 +10,60 @@ import { StatusBadge } from '../components/ui/status-badge'
 import { getPrinterByIdOrUndefined, listPrinterQueueNames, listPrinters } from '../features/admin/printers/api'
 import type { AdminPrinter } from '../types/admin'
 
+function getPrinterStatusClass(status: AdminPrinter['status']) {
+  return status === 'Online'
+    ? 'text-sm text-accent-700'
+    : status === 'Offline'
+      ? 'text-sm text-danger-500'
+      : 'text-sm text-warn-500'
+}
+
+function getPrinterReleaseSummary(printer: AdminPrinter) {
+  return printer.holdReleaseMode === 'Immediate' ? 'Immediate output' : 'Device authentication required'
+}
+
+function getPrinterOperationalIssue(printer: AdminPrinter) {
+  if (printer.status === 'Offline') {
+    return 'Offline. Release attempts stay held until the device reconnects.'
+  }
+
+  if (printer.status === 'Maintenance') {
+    return 'Under maintenance. Redirect or wait before releasing more jobs.'
+  }
+
+  if (printer.toner <= 20) {
+    return 'Low toner warning. Device still available for release.'
+  }
+
+  return 'No active device faults reported.'
+}
+
+function buildPrinterActivity(printer: AdminPrinter) {
+  const events = [
+    {
+      title: 'Queue assignment',
+      message: `${printer.name} is currently mapped to ${printer.queue}. Each physical printer can belong to only one queue at a time.`,
+    },
+    {
+      title: 'Release path',
+      message: getPrinterReleaseSummary(printer),
+    },
+    {
+      title: 'Operational state',
+      message: getPrinterOperationalIssue(printer),
+    },
+  ]
+
+  if (printer.pendingJobs > 0) {
+    events.push({
+      title: 'Held jobs awaiting action',
+      message: `${printer.pendingJobs} jobs are still in the queue lifecycle and should remain visible in logs until they print, fail, or expire.`,
+    })
+  }
+
+  return events
+}
+
 export function PrintersPage() {
   const adminPrinters = listPrinters()
   const navigate = useNavigate()
@@ -30,6 +84,7 @@ export function PrintersPage() {
       <PageHeader
         eyebrow="Printers"
         title="Device and queue operations"
+        description="Operational visibility for physical printers, queue assignments, and release-impacting device issues."
       />
 
       <FilterBar
@@ -60,36 +115,26 @@ export function PrintersPage() {
                 render: (printer) => <span className="ui-table-primary-strong">{printer.name}</span>,
               },
               {
-                key: 'software',
-                header: 'Software version',
-                render: (printer) => <span className="ui-table-secondary">{printer.softwareVersion}</span>,
+                key: 'queue',
+                header: 'Assigned queue',
+                render: (printer) => <span className="ui-table-secondary">{printer.queue}</span>,
               },
               {
                 key: 'status',
-                header: 'Activation status',
+                header: 'Status',
                 render: (printer) => (
-                  <span
-                    className={
-                      printer.status === 'Online'
-                        ? 'text-sm text-accent-700'
-                        : printer.status === 'Offline'
-                          ? 'text-sm text-danger-500'
-                          : 'text-sm text-warn-500'
-                    }
-                  >
-                    {printer.status}
-                  </span>
+                  <span className={getPrinterStatusClass(printer.status)}>{printer.status}</span>
                 ),
               },
               {
-                key: 'jobs',
-                header: 'Jobs',
-                render: (printer) => <span className="ui-table-secondary">{printer.releasedToday}</span>,
+                key: 'release',
+                header: 'Release path',
+                render: (printer) => <span className="ui-table-secondary">{getPrinterReleaseSummary(printer)}</span>,
               },
               {
-                key: 'held-jobs',
-                header: 'Held jobs',
-                render: (printer) => <span className="ui-table-secondary">{printer.pendingJobs}</span>,
+                key: 'issue',
+                header: 'Operational note',
+                render: (printer) => <span className="ui-table-secondary">{getPrinterOperationalIssue(printer)}</span>,
               },
             ]}
             rows={filteredPrinters}
@@ -167,9 +212,9 @@ export function PrinterDetailPage() {
             </label>
           </DetailSection>
 
-          <DetailSection title="Queue and release">
+          <DetailSection title="Queue assignment and release">
             <label>
-              <div className="ui-detail-label">Queue</div>
+              <div className="ui-detail-label">Assigned queue</div>
               <select className="ui-select mt-2 w-full" defaultValue={printer.queue}>
                 {queueOptions.map((queueName) => (
                   <option key={queueName}>{queueName}</option>
@@ -184,20 +229,19 @@ export function PrinterDetailPage() {
                 <option>Maintenance</option>
               </select>
             </label>
-            <label className="ui-checkbox-line xl:col-span-2">
-              <input type="checkbox" defaultChecked={printer.holdReleaseMode !== 'Immediate'} />
-              <span>Enable hold/release queue</span>
-            </label>
             <label>
-              <div className="ui-detail-label">Release mode</div>
+              <div className="ui-detail-label">Device release path</div>
               <select className="ui-select mt-2 w-full" defaultValue={printer.holdReleaseMode}>
                 <option>Secure Release</option>
                 <option>Immediate</option>
               </select>
             </label>
+            <div className="xl:col-span-2 rounded-none border border-line bg-mist-50 px-4 py-4 text-sm text-slate-600">
+              Secure release is a device-side behavior. This record helps operations track which printers require authentication before queued jobs can be printed.
+            </div>
           </DetailSection>
 
-          <DetailSection title="Print policy">
+          <DetailSection title="Operational policy">
             <label>
               <div className="ui-detail-label">Software version</div>
               <input className="ui-input mt-2" defaultValue={printer.softwareVersion} />
@@ -271,7 +315,7 @@ export function PrinterDetailPage() {
             </label>
           </DetailSection>
 
-          <DetailSection title="Operational metrics">
+          <DetailSection title="Device telemetry">
             <label>
               <div className="ui-detail-label">Hosted on</div>
               <input className="ui-input mt-2" defaultValue={printer.hostedOn} />
@@ -285,9 +329,20 @@ export function PrinterDetailPage() {
               <input className="ui-input mt-2" defaultValue={`${printer.toner}%`} />
             </label>
             <label>
-              <div className="ui-detail-label">Failure mode</div>
-              <input className="ui-input mt-2" defaultValue={printer.failureMode} />
+              <div className="ui-detail-label">Release path</div>
+              <input className="ui-input mt-2" defaultValue={getPrinterReleaseSummary(printer)} />
             </label>
+          </DetailSection>
+
+          <DetailSection title="Operational visibility" columns="single">
+            <div className="grid gap-3">
+              {buildPrinterActivity(printer).map((event) => (
+                <div key={event.title} className="border border-line bg-white px-4 py-4">
+                  <div className="text-sm font-semibold text-ink-950">{event.title}</div>
+                  <div className="mt-1 text-sm text-slate-500">{event.message}</div>
+                </div>
+              ))}
+            </div>
           </DetailSection>
         </DetailPanel>
       ) : null}

@@ -21,7 +21,7 @@ export function TechPrintersScreen() {
 
   return (
     <div className="min-w-0">
-      <PageHeader eyebrow="Printers" title="Printer status" />
+      <PageHeader eyebrow="Printers" title="Operational printer status" description="Read-only printer health, queue backlog, and release-impact visibility for technicians." />
 
       <FilterBar
         searchValue={search}
@@ -43,40 +43,38 @@ export function TechPrintersScreen() {
               render: (p) => <span className="ui-table-secondary">{p.location}</span>,
             },
             {
+              key: 'queue',
+              header: 'Queue',
+              render: (p) => <span className="ui-table-secondary">{p.queue}</span>,
+            },
+            {
               key: 'status',
               header: 'Status',
               render: (p) => (
-                <span
-                  className={
-                    p.status === 'Online'
-                      ? 'text-sm text-accent-700'
-                      : p.status === 'Offline'
-                        ? 'text-sm text-danger-500'
-                        : 'text-sm text-warn-500'
-                  }
-                >
+                <span className={p.status === 'Online' ? 'text-sm text-accent-700' : p.status === 'Offline' ? 'text-sm text-danger-500' : 'text-sm text-warn-500'}>
                   {p.status}
                 </span>
               ),
             },
             {
-              key: 'toner',
-              header: 'Toner',
+              key: 'issue',
+              header: 'Operational note',
               render: (p) => (
-                <span className={p.toner <= 20 ? 'text-sm font-medium text-warn-500' : 'ui-table-secondary'}>
-                  {p.toner}%
+                <span className="ui-table-secondary">
+                  {p.status === 'Offline'
+                    ? 'Release blocked until the device reconnects.'
+                    : p.status === 'Maintenance'
+                      ? 'Maintenance mode is active.'
+                      : p.toner <= 20
+                        ? 'Low toner warning.'
+                        : 'No active device fault.'}
                 </span>
               ),
             },
             {
               key: 'pending',
-              header: 'Pending',
+              header: 'Held jobs',
               render: (p) => <span className="ui-table-secondary">{p.pendingJobs}</span>,
-            },
-            {
-              key: 'released',
-              header: 'Released today',
-              render: (p) => <span className="ui-table-secondary">{p.releasedToday}</span>,
             },
           ]}
           rows={filteredPrinters}
