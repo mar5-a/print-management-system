@@ -1,16 +1,67 @@
 import { adminPrinters, listAdminQueues } from './admin-store'
+import { getCurrentUser } from '@/lib/auth'
+import type { AuthUser } from '@/types/auth'
 import type { PortalPrintJob, PortalQueueOption, PortalSubmissionDraft, PortalUserProfile } from '../types/portal'
 
-export const portalUserProfile: PortalUserProfile = {
-  id: 'u20230001',
-  displayName: 'John Smith',
-  username: 'john.smith',
-  department: 'Computer Science',
-  role: 'Student',
-  assignedQueueId: 'que-01',
-  quotaUsed: 140,
-  quotaTotal: 1000,
-  retentionHours: 24,
+interface PortalUserProfileRecord extends PortalUserProfile {
+  email: string
+}
+
+const portalUserProfiles: PortalUserProfileRecord[] = [
+  {
+    id: 'user-003',
+    displayName: 'Student User',
+    username: 'student.user',
+    email: 'student@university.edu',
+    department: 'Computer Science',
+    role: 'Student',
+    assignedQueueId: 'que-01',
+    quotaUsed: 140,
+    quotaTotal: 1000,
+    retentionHours: 24,
+  },
+  {
+    id: 'user-004',
+    displayName: 'Faculty User',
+    username: 'faculty.user',
+    email: 'faculty@university.edu',
+    department: 'Information Systems',
+    role: 'Faculty',
+    assignedQueueId: 'que-04',
+    quotaUsed: 320,
+    quotaTotal: 5000,
+    retentionHours: 48,
+  },
+]
+
+function toPortalUserProfile(profile: PortalUserProfileRecord): PortalUserProfile {
+  const { email: _, ...safeProfile } = profile
+  return safeProfile
+}
+
+function getDefaultPortalProfile(): PortalUserProfileRecord {
+  return portalUserProfiles[0]
+}
+
+function getCurrentPortalProfileRecord(): PortalUserProfileRecord {
+  const authUser = getCurrentUser()
+  return resolvePortalProfileRecord(authUser) ?? getDefaultPortalProfile()
+}
+
+function resolvePortalProfileRecord(authUser: AuthUser | null): PortalUserProfileRecord | undefined {
+  if (!authUser) {
+    return undefined
+  }
+
+  return (
+    portalUserProfiles.find((profile) => profile.id === authUser.id) ??
+    portalUserProfiles.find((profile) => profile.username === authUser.username) ??
+    portalUserProfiles.find((profile) => profile.email.toLowerCase() === authUser.email.toLowerCase())
+  )
+}
+
+export function getPortalProfileForAuthUser(authUser: AuthUser | null): PortalUserProfile {
+  return toPortalUserProfile(resolvePortalProfileRecord(authUser) ?? getDefaultPortalProfile())
 }
 
 const weeklyUsageSeed = [18, 12, 26, 34, 20, 8, 22]
@@ -18,6 +69,7 @@ const weeklyUsageSeed = [18, 12, 26, 34, 20, 8, 22]
 let portalJobsData: PortalPrintJob[] = [
   {
     id: 'JOB-A1B2C3D',
+    userId: 'user-003',
     fileName: 'Quarterly_Report.pdf',
     submittedAt: '2026-04-07 08:15',
     printerName: 'Printer A1',
@@ -35,6 +87,7 @@ let portalJobsData: PortalPrintJob[] = [
   },
   {
     id: 'JOB-P2A3B4C',
+    userId: 'user-003',
     fileName: 'Document_Report.pdf',
     submittedAt: '2026-04-06 09:30',
     printerName: 'Printer A1',
@@ -52,6 +105,7 @@ let portalJobsData: PortalPrintJob[] = [
   },
   {
     id: 'JOB-X5Y6Z7D',
+    userId: 'user-004',
     fileName: 'Presentation.pdf',
     submittedAt: '2026-04-05 14:45',
     printerName: 'Printer D1',
@@ -68,6 +122,7 @@ let portalJobsData: PortalPrintJob[] = [
   },
   {
     id: 'JOB-M8N9O0P',
+    userId: 'user-003',
     fileName: 'Invoice_Feb.pdf',
     submittedAt: '2026-04-04 11:20',
     printerName: 'Printer A1',
@@ -84,6 +139,7 @@ let portalJobsData: PortalPrintJob[] = [
   },
   {
     id: 'JOB-Q1R2S3T',
+    userId: 'user-004',
     fileName: 'Meeting_Notes.docx',
     submittedAt: '2026-04-03 16:15',
     printerName: 'Printer A1',
@@ -100,6 +156,7 @@ let portalJobsData: PortalPrintJob[] = [
   },
   {
     id: 'JOB-U4V5W6X',
+    userId: 'user-003',
     fileName: 'Spreadsheet.xlsx',
     submittedAt: '2026-04-02 10:00',
     printerName: 'Printer A1',
@@ -123,11 +180,13 @@ function cloneJob(job: PortalPrintJob): PortalPrintJob {
 }
 
 export function listPortalJobs() {
-  return portalJobsData.map(cloneJob)
+  const currentProfile = getCurrentPortalProfileRecord()
+  return portalJobsData.filter((job) => job.userId === currentProfile.id).map(cloneJob)
 }
 
 export function cancelPortalJob(jobId: string) {
-  const job = portalJobsData.find((entry) => entry.id === jobId)
+  const currentProfile = getCurrentPortalProfileRecord()
+  const job = portalJobsData.find((entry) => entry.id === jobId && entry.userId === currentProfile.id)
 
   if (!job || job.status !== 'Pending Release') {
     return false
@@ -139,6 +198,7 @@ export function cancelPortalJob(jobId: string) {
 }
 
 export function createPortalJob(draft: PortalSubmissionDraft) {
+  const currentProfile = getCurrentPortalProfileRecord()
   const selectedQueue = getDefaultPortalQueueForCurrentUser()
 
   if (!selectedQueue || !selectedQueue.available) {
@@ -157,6 +217,7 @@ export function createPortalJob(draft: PortalSubmissionDraft) {
 
   const createdJob: PortalPrintJob = {
     id: `JOB-${jobCounter.toString(36).toUpperCase()}`,
+    userId: currentProfile.id,
     fileName: draft.fileName,
     submittedAt: '2026-04-07 10:20',
     printerName: selectedQueue.printerName,
@@ -174,17 +235,18 @@ export function createPortalJob(draft: PortalSubmissionDraft) {
   }
 
   portalJobsData = [createdJob, ...portalJobsData]
-  portalUserProfile.quotaUsed += totalPages
+  currentProfile.quotaUsed += totalPages
   weeklyUsageSeed[weeklyUsageSeed.length - 1] += totalPages
 
   return cloneJob(createdJob)
 }
 
 export function listPortalQueuesForCurrentUser() {
-  const role = portalUserProfile.role
+  const currentProfile = getCurrentPortalProfileRecord()
+  const role = currentProfile.role
   const printerById = new Map(adminPrinters.map((printer) => [printer.id, printer]))
   const adminQueues = listAdminQueues()
-  const defaultQueueId = portalUserProfile.assignedQueueId
+  const defaultQueueId = currentProfile.assignedQueueId
 
   const mappedQueues = adminQueues.map<PortalQueueOption>((queue) => {
     const assignedPrinter = queue.printerIds

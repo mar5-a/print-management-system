@@ -34,6 +34,7 @@ export interface PortalQueueOption {
 
 export interface PortalPrintJob {
   id: string
+  userId: string
   fileName: string
   submittedAt: string
   printerName: string
