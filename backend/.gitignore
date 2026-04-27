@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+storage/uploads/*
+storage/converted/*
+!storage/uploads/.gitkeep
+!storage/converted/.gitkeep
