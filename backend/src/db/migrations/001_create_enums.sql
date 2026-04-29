@@ -2,8 +2,11 @@
 
 -- Job status lifecycle
 CREATE TYPE job_status AS ENUM (
+  'uploaded',
+  'queued',
   'submitted',
   'held',
+  'blocked',
   'released',
   'printing',
   'completed',
@@ -24,6 +27,35 @@ CREATE TYPE device_status AS ENUM (
   'offline',
   'error',
   'maintenance'
+);
+
+-- Queue status
+CREATE TYPE queue_status AS ENUM (
+  'active',
+  'paused',
+  'disabled'
+);
+
+-- Error/issue status
+CREATE TYPE error_status AS ENUM (
+  'open',
+  'acknowledged',
+  'resolved'
+);
+
+-- Authentication result
+CREATE TYPE auth_result AS ENUM (
+  'success',
+  'failed',
+  'locked'
+);
+
+-- Queue access rule type
+CREATE TYPE access_rule_type AS ENUM (
+  'role',
+  'department',
+  'ad_group',
+  'user'
 );
 
 -- User roles
