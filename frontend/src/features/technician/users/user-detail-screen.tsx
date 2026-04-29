@@ -14,11 +14,31 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
   const navigate = useNavigate()
   const [quotaTotal, setQuotaTotal] = useState(user.quotaTotal)
   const [status, setStatus] = useState<'Active' | 'Suspended'>(user.status)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
-  function handleSave() {
-    updateTechUserQuota(user.id, quotaTotal)
-    setTechUserStatus(user.id, status)
-    navigate('/tech/users')
+  const canManageAccount = user.role === 'Student'
+
+  async function handleSave() {
+    if (!canManageAccount) {
+      setSaveError('Technicians can only update student accounts.')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    setSaveError(null)
+    setIsSaving(true)
+    try {
+      await updateTechUserQuota(user.id, quotaTotal)
+      await setTechUserStatus(user.id, status)
+      navigate('/tech/users')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to save changes.'
+      setSaveError(message)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const isSuspended = status === 'Suspended'
@@ -37,6 +57,25 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
       />
 
       <DetailPanel>
+        {!canManageAccount ? (
+          <div className="px-5 pt-5">
+            <DetailAlert
+              tone="warn"
+              title="Protected account"
+              description="Technicians cannot modify administrator or technician accounts."
+            />
+          </div>
+        ) : null}
+
+        {saveError ? (
+          <div className="px-5 pt-5">
+            <DetailAlert
+              title="Update failed"
+              description={saveError}
+            />
+          </div>
+        ) : null}
+
         {isSuspended && (
           <div className="px-5 pt-5">
             <DetailAlert
@@ -61,7 +100,7 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
           </div>
           <label>
             <div className="ui-detail-label">Status</div>
-            <select className="ui-select mt-2 w-full" value={status} onChange={(e) => setStatus(e.target.value as 'Active' | 'Suspended')}>
+            <select className="ui-select mt-2 w-full" value={status} onChange={(e) => setStatus(e.target.value as 'Active' | 'Suspended')} disabled={!canManageAccount || isSaving}>
               <option>Active</option>
               <option>Suspended</option>
             </select>
@@ -80,6 +119,7 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
               type="number"
               value={quotaTotal}
               onChange={(e) => setQuotaTotal(Number(e.target.value))}
+              disabled={!canManageAccount || isSaving}
             />
           </label>
           <div>
@@ -117,7 +157,7 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
           <button className="ui-button-ghost" onClick={() => navigate('/tech/users')}>
             Cancel
           </button>
-          <button className="ui-button" onClick={handleSave}>
+          <button className="ui-button" onClick={handleSave} disabled={!canManageAccount || isSaving}>
             Apply
           </button>
         </DetailActionBar>

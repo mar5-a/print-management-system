@@ -5,6 +5,7 @@ import { validateBody, validateQuery } from '../middleware/validate.js'
 import * as usersService from '../services/users.service.js'
 import { hashPassword } from '../lib/jwt.js'
 import { ok, created, noContent, paginated } from '../lib/response.js'
+import { ForbiddenError } from '../lib/errors.js'
 
 const router = Router()
 router.use(authenticate)
@@ -34,6 +35,14 @@ const updateSchema = z.object({
   departmentId: z.string().uuid().nullable().optional(),
   allocatedPages: z.number().int().positive().optional(),
 })
+
+async function assertTechnicianCanManageTarget(req: Parameters<typeof router.get>[1] extends never ? never : any, targetUserId: string) {
+  if (req.user?.role !== 'technician') return
+  const target = await usersService.getUserById(targetUserId)
+  if (target.role !== 'standard_user') {
+    throw new ForbiddenError('Technicians can only manage student accounts')
+  }
+}
 
 // GET /api/users
 router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema), async (req, res) => {
@@ -65,12 +74,14 @@ router.patch('/:id', requireRole('admin'), validateBody(updateSchema), async (re
 
 // POST /api/users/:id/suspend
 router.post('/:id/suspend', requireRole('admin', 'technician'), async (req, res) => {
+  await assertTechnicianCanManageTarget(req, req.params.id)
   await usersService.suspendUser(req.params.id)
   ok(res, { message: 'User suspended' })
 })
 
 // POST /api/users/:id/reactivate
 router.post('/:id/reactivate', requireRole('admin', 'technician'), async (req, res) => {
+  await assertTechnicianCanManageTarget(req, req.params.id)
   await usersService.reactivateUser(req.params.id)
   ok(res, { message: 'User reactivated' })
 })
@@ -78,6 +89,7 @@ router.post('/:id/reactivate', requireRole('admin', 'technician'), async (req, r
 // PATCH /api/users/:id/quota — technician can adjust quota
 const quotaSchema = z.object({ allocatedPages: z.number().int().min(0) })
 router.patch('/:id/quota', requireRole('admin', 'technician'), validateBody(quotaSchema), async (req, res) => {
+  await assertTechnicianCanManageTarget(req, req.params.id)
   const body = req.body as z.infer<typeof quotaSchema>
   const user = await usersService.updateUser(req.params.id, { allocatedPages: body.allocatedPages })
   ok(res, user)
