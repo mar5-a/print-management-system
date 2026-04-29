@@ -49,3 +49,16 @@ CREATE INDEX idx_printers_deleted_at ON printers(deleted_at);
 -- Queues
 CREATE INDEX idx_print_queues_status ON print_queues(status);
 CREATE INDEX idx_print_queues_deleted_at ON print_queues(deleted_at);
+
+-- Authentication logs
+CREATE INDEX idx_auth_logs_user_id ON auth_logs(user_id);
+CREATE INDEX idx_auth_logs_source_ip ON auth_logs(source_ip);
+CREATE INDEX idx_auth_logs_created_at ON auth_logs(created_at);
+CREATE INDEX idx_auth_logs_result ON auth_logs(result);
+
+-- Technician privileges
+CREATE INDEX idx_technician_privileges_technician_id ON technician_privileges(technician_id);
+
+-- Queue access rules
+CREATE INDEX idx_queue_access_rules_queue_id ON queue_access_rules(queue_id);
+CREATE INDEX idx_queue_access_rules_rule_type ON queue_access_rules(rule_type);

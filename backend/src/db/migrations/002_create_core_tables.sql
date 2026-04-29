@@ -25,10 +25,12 @@ CREATE TABLE users (
   username VARCHAR(255) NOT NULL UNIQUE,
   email VARCHAR(255) NOT NULL UNIQUE,
   display_name VARCHAR(255) NOT NULL,
+  university_id VARCHAR(255) NOT NULL UNIQUE,
   department_id UUID REFERENCES departments(id),
   is_active BOOLEAN DEFAULT true,
   is_suspended BOOLEAN DEFAULT false,
   ad_object_id VARCHAR(255),
+  last_synced_at TIMESTAMP,
   deleted_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -61,6 +63,9 @@ CREATE TABLE printers (
   toner_level INTEGER DEFAULT 100,
   last_heartbeat TIMESTAMP,
   serial_number VARCHAR(255),
+  device_code VARCHAR(255),
+  service_account_username VARCHAR(255),
+  credential_ref VARCHAR(255),
   notes TEXT,
   deleted_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -72,7 +77,7 @@ CREATE TABLE print_queues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL UNIQUE,
   description TEXT,
-  status device_status DEFAULT 'online',
+  status queue_status DEFAULT 'active',
   enabled BOOLEAN DEFAULT true,
   release_mode release_mode DEFAULT 'secure_release',
   audience audience_type DEFAULT 'mixed',
@@ -124,7 +129,7 @@ CREATE TABLE print_jobs (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   queue_id UUID NOT NULL REFERENCES print_queues(id),
   printer_id UUID REFERENCES printers(id),
-  file_name VARCHAR(255) NOT NULL,
+  original_file_name VARCHAR(255) NOT NULL,
   file_path VARCHAR(1024),
   file_hash VARCHAR(64),
   file_size_bytes INTEGER,
@@ -137,7 +142,7 @@ CREATE TABLE print_jobs (
   paper_type paper_type DEFAULT 'standard',
   estimated_cost DECIMAL(10, 4),
   final_cost DECIMAL(10, 4),
-  status job_status DEFAULT 'submitted',
+  status job_status DEFAULT 'uploaded',
   submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   released_at TIMESTAMP,
   printing_started_at TIMESTAMP,
@@ -169,7 +174,7 @@ CREATE TABLE device_errors (
   printer_id UUID NOT NULL REFERENCES printers(id) ON DELETE CASCADE,
   error_code VARCHAR(50),
   severity error_severity DEFAULT 'warning',
-  status device_status DEFAULT 'online',
+  status error_status DEFAULT 'open',
   title VARCHAR(255),
   description TEXT,
   detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -203,6 +208,7 @@ CREATE TABLE notifications (
 CREATE TABLE audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  actor_role user_role,                        -- role held by actor at the time of action
   action_type audit_action NOT NULL,
   target_type audit_target NOT NULL,
   target_id VARCHAR(255),
@@ -230,18 +236,43 @@ CREATE TABLE pricing_rules (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Daily Statistics (for analytics/reports)
-CREATE TABLE daily_stats (
+-- =============================================
+-- AUTHENTICATION & ACCESS CONTROL
+-- =============================================
+
+-- Authentication event log
+CREATE TABLE auth_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  stat_date DATE NOT NULL UNIQUE,
-  total_jobs INTEGER DEFAULT 0,
-  completed_jobs INTEGER DEFAULT 0,
-  failed_jobs INTEGER DEFAULT 0,
-  total_pages_printed INTEGER DEFAULT 0,
-  total_cost DECIMAL(15, 4) DEFAULT 0,
-  avg_cost_per_job DECIMAL(10, 4),
-  color_pages INTEGER DEFAULT 0,
-  bw_pages INTEGER DEFAULT 0,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  username_attempted VARCHAR(255),
+  source_ip VARCHAR(45),
+  result auth_result NOT NULL,
+  failure_reason TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Per-technician permission management
+CREATE TABLE technician_privileges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  technician_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  can_manage_quotas BOOLEAN DEFAULT false,
+  can_suspend_users BOOLEAN DEFAULT false,
+  can_view_logs BOOLEAN DEFAULT false,
+  can_view_notifications BOOLEAN DEFAULT false,
+  can_manage_queues BOOLEAN DEFAULT false,
+  can_manage_printers BOOLEAN DEFAULT false,
+  updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Queue access control rules
+CREATE TABLE queue_access_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  queue_id UUID NOT NULL REFERENCES print_queues(id) ON DELETE CASCADE,
+  rule_type access_rule_type NOT NULL,
+  rule_value VARCHAR(255) NOT NULL,
+  allow BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
