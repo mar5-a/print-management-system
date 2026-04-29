@@ -8,7 +8,7 @@ import {
   Printer,
   ShieldCheck,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { AdvancedFilterPanel } from '../components/ui/advanced-filter-panel'
 import { DataTable } from '../components/ui/data-table'
 import { PageHeader } from '../components/ui/page-header'
@@ -76,7 +76,13 @@ function StatusRow({
 }
 
 export function DashboardPage() {
-  const { adminPrinters, adminUsers, recentPrintRows, trendLabels, trendValues } = getDashboardSnapshot()
+  const [snap, setSnap] = useState<Awaited<ReturnType<typeof getDashboardSnapshot>> | null>(null)
+  useEffect(() => { getDashboardSnapshot().then(setSnap) }, [])
+  const adminUsers = snap?.adminUsers ?? []
+  const adminPrinters = snap?.adminPrinters ?? []
+  const recentPrintRows = snap?.recentPrintRows ?? []
+  const trendLabels = snap?.trendLabels ?? ['01', '03', '05', '07', '09', '11', '13', '15', '17', '19', '21', '23']
+  const trendValues = snap?.trendValues ?? Array.from({ length: 13 }, () => 0)
   const [dateRange, setDateRange] = useState('Last 7 days')
   const [department, setDepartment] = useState('All departments')
   const [device, setDevice] = useState('All devices')

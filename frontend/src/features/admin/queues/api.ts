@@ -1,38 +1,99 @@
-import {
-  adminGroups,
-  adminPrinters,
-  createAdminQueue,
-  deleteAdminQueue,
-  getQueueById,
-  listAdminQueues,
-  updateAdminQueue,
-} from '@/mocks/admin-store'
-import type { AdminQueue } from '@/types/admin'
+import { api } from '@/lib/api'
+import type { AdminPrinter, AdminGroup, AdminQueue } from '@/types/admin'
 
-export function listQueues() {
-  return listAdminQueues()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapQueue(q: any): AdminQueue {
+  const releaseMap: Record<string, AdminQueue['releaseMode']> = {
+    secure_release: 'Secure Release',
+    immediate: 'Immediate',
+    kiosk_release: 'Kiosk Release',
+  }
+  const audienceMap: Record<string, AdminQueue['audience']> = {
+    students: 'Students',
+    faculty: 'Faculty',
+    staff: 'Staff',
+    mixed: 'Mixed',
+  }
+  const statusMap: Record<string, AdminQueue['status']> = {
+    online: 'Online', offline: 'Offline', maintenance: 'Maintenance',
+  }
+  return {
+    id: q.id,
+    name: q.name,
+    description: q.description ?? '',
+    hostedOn: 'ccm-print-server',
+    status: statusMap[q.status] ?? 'Offline',
+    enabled: q.enabled ?? true,
+    releaseMode: releaseMap[q.release_mode] ?? 'Secure Release',
+    audience: audienceMap[q.audience] ?? 'Mixed',
+    department: q.department_name ?? '—',
+    allowedGroups: [],
+    colorMode: 'Black & White',
+    defaultDuplex: true,
+    costPerPage: parseFloat(q.cost_per_page ?? '0.05'),
+    printerIds: (q.printers ?? []).map((p: { id: string }) => p.id),
+    pendingJobs: parseInt(q.pending_jobs ?? '0', 10),
+    heldJobs: 0,
+    releasedToday: 0,
+    lastActivity: '—',
+    autoDeleteAfterHours: q.retention_hours ?? 24,
+    failureMode: 'Hold until redirected',
+    notes: '',
+    queueLogs: [],
+  }
 }
 
-export function getQueueByIdOrUndefined(queueId?: string) {
-  return getQueueById(queueId)
+export async function listQueues(): Promise<AdminQueue[]> {
+  const res = await api.get<{ data: AdminQueue[] }>('/queues?limit=100')
+  return res.data.map(mapQueue)
 }
 
-export function listQueuePrinters() {
-  return adminPrinters
+export async function getQueueByIdOrUndefined(queueId?: string): Promise<AdminQueue | undefined> {
+  if (!queueId) return undefined
+  try {
+    const res = await api.get<{ data: AdminQueue }>(`/queues/${queueId}`)
+    return mapQueue(res.data)
+  } catch {
+    return undefined
+  }
 }
 
-export function listQueueGroups() {
-  return adminGroups
+export async function listQueuePrinters(): Promise<AdminPrinter[]> {
+  const res = await api.get<{ data: AdminPrinter[] }>('/printers?limit=100')
+  return res.data
 }
 
-export function createQueue(queue: AdminQueue) {
-  return createAdminQueue(queue)
+export async function listQueueGroups(): Promise<AdminGroup[]> {
+  const res = await api.get<{ data: AdminGroup[] }>('/groups')
+  return res.data
 }
 
-export function saveQueue(queue: AdminQueue) {
-  return updateAdminQueue(queue)
+export async function createQueue(queue: AdminQueue): Promise<AdminQueue> {
+  const res = await api.post<{ data: AdminQueue }>('/queues', {
+    name: queue.name,
+    description: queue.description,
+    releaseMode: queue.releaseMode === 'Secure Release' ? 'secure_release' : queue.releaseMode === 'Immediate' ? 'immediate' : 'kiosk_release',
+    audience: queue.audience.toLowerCase(),
+    retentionHours: queue.autoDeleteAfterHours,
+    costPerPage: queue.costPerPage,
+    printerIds: queue.printerIds,
+  })
+  return mapQueue(res.data)
 }
 
-export function removeQueue(queueId: string) {
-  return deleteAdminQueue(queueId)
+export async function saveQueue(queue: AdminQueue): Promise<AdminQueue> {
+  const res = await api.patch<{ data: AdminQueue }>(`/queues/${queue.id}`, {
+    name: queue.name,
+    description: queue.description,
+    enabled: queue.enabled,
+    releaseMode: queue.releaseMode === 'Secure Release' ? 'secure_release' : queue.releaseMode === 'Immediate' ? 'immediate' : 'kiosk_release',
+    audience: queue.audience.toLowerCase(),
+    costPerPage: queue.costPerPage,
+    printerIds: queue.printerIds,
+  })
+  return mapQueue(res.data)
+}
+
+export async function removeQueue(queueId: string): Promise<void> {
+  await api.delete(`/queues/${queueId}`)
 }

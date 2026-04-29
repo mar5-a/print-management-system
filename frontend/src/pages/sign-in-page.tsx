@@ -3,8 +3,9 @@ import { Printer, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { validateUserCredentials } from '@/mocks/auth-store'
+import { api } from '@/lib/api'
 import { login } from '@/lib/auth'
+import type { UserRole } from '@/types/auth'
 
 interface SignInFormData {
   email: string
@@ -44,35 +45,36 @@ export function SignInPage() {
 
     setIsLoading(true)
 
-    // Simulate API call delay (remove in production with real auth service)
-    await new Promise((resolve) => setTimeout(resolve, 800))
+    try {
+      // Map backend role enum to frontend display role
+      const roleMap: Record<string, UserRole> = {
+        admin: 'Administrator',
+        technician: 'Technician',
+        standard_user: 'Student',
+      }
 
-    // Validate credentials against auth service (currently mock, easily replaceable)
-    const result = validateUserCredentials(formData.email, formData.password)
+      const res = await api.post<{ data: { token: string; user: { id: string; username: string; email: string; role: string } } }>(
+        '/auth/login',
+        { credential: formData.email, password: formData.password }
+      )
 
-    if (!result.ok) {
-      setError(result.reason)
-      setIsLoading(false)
-      return
-    }
+      const { token, user } = res.data
+      const mappedRole = roleMap[user.role] ?? 'Student'
 
-    // Save user session
-    login(result.user)
+      login({ id: user.id, username: user.username, email: user.email, role: mappedRole, status: 'Active' }, token)
 
-    // Redirect based on role
-    switch (result.user.role) {
-      case 'Administrator':
-        navigate('/admin/dashboard')
-        break
-      case 'Technician':
-        navigate('/tech/dashboard')
-        break
-      case 'Student':
-      case 'Faculty':
-        navigate('/portal/dashboard')
-        break
-      default:
-        setError('Unable to determine user role')
+      switch (mappedRole) {
+        case 'Administrator':
+          navigate('/admin/dashboard')
+          break
+        case 'Technician':
+          navigate('/tech/dashboard')
+          break
+        default:
+          navigate('/portal/dashboard')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed')
     }
 
     setIsLoading(false)

@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Ban, Download, Plus, RefreshCw } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { DetailActionBar, DetailAlert, DetailPanel, DetailSection } from '../components/ui/admin-detail'
@@ -10,7 +10,8 @@ import { getUserByIdOrUndefined, listUsers } from '../features/admin/users/api'
 import type { AdminUser } from '../types/admin'
 
 export function UsersPage() {
-  const adminUsers = listUsers()
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  useEffect(() => { listUsers().then(setAdminUsers) }, [])
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'All' | 'Active' | 'Suspended'>('All')
@@ -159,8 +160,13 @@ export function UsersPage() {
 export function UserDetailPage() {
   const navigate = useNavigate()
   const { userId } = useParams()
-  const user = getUserByIdOrUndefined(userId)
+  const [user, setUser] = useState<AdminUser | undefined>(undefined)
+  const [loadingUser, setLoadingUser] = useState(true)
+  useEffect(() => {
+    getUserByIdOrUndefined(userId).then(setUser).finally(() => setLoadingUser(false))
+  }, [userId])
 
+  if (loadingUser) return null
   if (!user) {
     return <Navigate to="/admin/users" replace />
   }

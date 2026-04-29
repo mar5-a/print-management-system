@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { DetailActionBar, DetailPanel, DetailSection } from '../components/ui/admin-detail'
@@ -9,7 +9,8 @@ import { getGroupByIdOrUndefined, listGroups } from '../features/admin/groups/ap
 import type { AdminGroup } from '../types/admin'
 
 export function GroupsPage() {
-  const adminGroups = listGroups()
+  const [adminGroups, setAdminGroups] = useState<AdminGroup[]>([])
+  useEffect(() => { listGroups().then(setAdminGroups) }, [])
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
@@ -88,8 +89,13 @@ export function GroupsPage() {
 export function GroupDetailPage() {
   const navigate = useNavigate()
   const { groupId } = useParams()
-  const group = getGroupByIdOrUndefined(groupId)
+  const [group, setGroup] = useState<AdminGroup | undefined>(undefined)
+  const [loadingGroup, setLoadingGroup] = useState(true)
+  useEffect(() => {
+    getGroupByIdOrUndefined(groupId).then(setGroup).finally(() => setLoadingGroup(false))
+  }, [groupId])
 
+  if (loadingGroup) return null
   if (!group) {
     return <Navigate to="/admin/groups" replace />
   }

@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { ArrowRightLeft, Plus, Trash2 } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { DetailActionBar, DetailAlert, DetailPanel, DetailSection } from '../components/ui/admin-detail'
@@ -65,7 +65,8 @@ function buildPrinterActivity(printer: AdminPrinter) {
 }
 
 export function PrintersPage() {
-  const adminPrinters = listPrinters()
+  const [adminPrinters, setAdminPrinters] = useState<AdminPrinter[]>([])
+  useEffect(() => { listPrinters().then(setAdminPrinters) }, [])
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
@@ -150,10 +151,16 @@ export function PrintersPage() {
 export function PrinterDetailPage() {
   const navigate = useNavigate()
   const { printerId } = useParams()
-  const printer = getPrinterByIdOrUndefined(printerId)
+  const [printer, setPrinter] = useState<AdminPrinter | undefined>(undefined)
+  const [loadingPrinter, setLoadingPrinter] = useState(true)
+  const [queueOptions, setQueueOptions] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('Settings')
-  const queueOptions = listPrinterQueueNames()
+  useEffect(() => {
+    getPrinterByIdOrUndefined(printerId).then(setPrinter).finally(() => setLoadingPrinter(false))
+    listPrinterQueueNames().then(setQueueOptions)
+  }, [printerId])
 
+  if (loadingPrinter) return null
   if (!printer) {
     return <Navigate to="/admin/printers" replace />
   }

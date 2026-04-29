@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataTable } from '@/components/ui/data-table'
 import { FilterBar } from '@/components/ui/filter-bar'
@@ -7,7 +7,8 @@ import { listTechUsers } from './api'
 import type { AdminUser } from '@/types/admin'
 
 export function TechUsersScreen() {
-  const users = listTechUsers()
+  const [users, setUsers] = useState<AdminUser[]>([])
+  useEffect(() => { listTechUsers().then(setUsers) }, [])
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'All' | 'Active' | 'Suspended'>('All')

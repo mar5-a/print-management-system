@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/composite/page-header'
 import { SectionTabs } from '@/components/composite/section-tabs'
@@ -14,8 +14,13 @@ import type { AdminQueue } from '@/types/admin'
 export function QueueDetailScreen() {
   const navigate = useNavigate()
   const { queueId } = useParams()
-  const queue = getQueueByIdOrUndefined(queueId)
+  const [queue, setQueue] = useState<AdminQueue | undefined>(undefined)
+  const [loadingQueue, setLoadingQueue] = useState(true)
+  useEffect(() => {
+    getQueueByIdOrUndefined(queueId).then(setQueue).finally(() => setLoadingQueue(false))
+  }, [queueId])
 
+  if (loadingQueue) return null
   if (!queue) {
     return <Navigate to="/admin/queues" replace />
   }
@@ -28,7 +33,9 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
   const [form, setForm] = useState(queue)
   const [saveMessage, setSaveMessage] = useState('')
   const [deleteReviewOpen, setDeleteReviewOpen] = useState(false)
-  const assignedPrinters = listQueuePrinters().filter((printer) => form.printerIds.includes(printer.id))
+  const [allPrinters, setAllPrinters] = useState<Awaited<ReturnType<typeof listQueuePrinters>>>([])
+  useEffect(() => { listQueuePrinters().then(setAllPrinters) }, [])
+  const assignedPrinters = allPrinters.filter((printer) => form.printerIds.includes(printer.id))
   const openLogCount = form.queueLogs.filter((entry) => entry.state === 'Open').length
   const canDelete = !isQueueDeleteBlocked(form)
 
@@ -47,17 +54,19 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
   }
 
   function resetForm() {
-    const freshQueue = getQueueByIdOrUndefined(queue.id)
-    setForm(freshQueue ?? queue)
-    setSaveMessage('')
-    setDeleteReviewOpen(false)
+    getQueueByIdOrUndefined(queue.id).then((freshQueue) => {
+      setForm(freshQueue ?? queue)
+      setSaveMessage('')
+      setDeleteReviewOpen(false)
+    })
   }
 
   function handleApply() {
-    const nextForm = { ...form, status: form.enabled ? form.status : 'Offline' }
-    saveQueue(nextForm)
-    setForm(nextForm)
-    setSaveMessage('Queue changes saved to the mock admin store.')
+    const nextForm = { ...form, status: (form.enabled ? form.status : 'Offline') as AdminQueue['status'] }
+    saveQueue(nextForm).then((saved) => {
+      setForm(saved)
+      setSaveMessage('Queue changes saved.')
+    }).catch(() => setSaveMessage('Failed to save changes.'))
   }
 
   function handleDelete() {
@@ -65,9 +74,7 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
       setDeleteReviewOpen(true)
       return
     }
-
-    removeQueue(form.id)
-    onBack()
+    removeQueue(form.id).then(onBack)
   }
 
   return (

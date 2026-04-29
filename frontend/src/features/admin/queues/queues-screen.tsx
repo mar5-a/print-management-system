@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdvancedFilterPanel } from '@/components/composite/advanced-filter-panel'
 import { FilterBar } from '@/components/composite/filter-bar'
@@ -15,7 +15,8 @@ import type { AdminQueue } from '@/types/admin'
 
 export function QueuesScreen() {
   const navigate = useNavigate()
-  const [queues, setQueues] = useState(() => listQueues())
+  const [queues, setQueues] = useState<AdminQueue[]>([])
+  useEffect(() => { listQueues().then(setQueues) }, [])
   const { availability, audienceFilter, deleteFilter, filteredQueues, resetFilters, search, setAudienceFilter, setAvailability, setDeleteFilter, setSearch, setStatusFilter, statusFilter } = useQueueFilters(queues)
   const { draft, isCreateOpen, resetDraft, setCreateOpen, setDraft, toggleDraftSelection } = useQueueForm()
 
@@ -58,8 +59,7 @@ export function QueuesScreen() {
       ],
     }
 
-    createQueue(createdQueue)
-    setQueues(listQueues())
+    createQueue(createdQueue).then(() => listQueues().then(setQueues))
     resetDraft()
     setCreateOpen(false)
     navigate(`/admin/queues/${createdQueue.id}`)

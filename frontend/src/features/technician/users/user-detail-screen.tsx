@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   DetailActionBar,
@@ -18,6 +18,7 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
   function handleSave() {
     updateTechUserQuota(user.id, quotaTotal)
     setTechUserStatus(user.id, status)
+    navigate('/tech/users')
   }
 
   const isSuspended = status === 'Suspended'
@@ -127,8 +128,13 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
 
 export function TechUserDetailScreen() {
   const { userId } = useParams()
-  const user = getTechUserOrUndefined(userId)
+  const [user, setUser] = useState<AdminUser | undefined>(undefined)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    getTechUserOrUndefined(userId).then(setUser).finally(() => setLoading(false))
+  }, [userId])
 
+  if (loading) return null
   if (!user) {
     return <Navigate to="/tech/users" replace />
   }
