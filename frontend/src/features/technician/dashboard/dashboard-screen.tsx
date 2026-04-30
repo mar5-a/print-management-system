@@ -6,6 +6,8 @@ import {
   Clock3,
   Users,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { DetailAlert } from '@/components/ui/admin-detail'
 import { DataTable } from '@/components/ui/data-table'
 import { PageHeader } from '@/components/ui/page-header'
 import { getTechDashboardSnapshot } from './api'
@@ -47,7 +49,23 @@ function ShiftStat({
 }
 
 export function TechDashboardScreen() {
-  const snapshot = getTechDashboardSnapshot()
+  const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof getTechDashboardSnapshot>> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getTechDashboardSnapshot()
+      .then(setSnapshot)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
+  }, [])
+
+  if (!snapshot) {
+    return (
+      <div className="min-w-0">
+        <PageHeader eyebrow="Dashboard" title="Shift overview" description="Operational view for alerts, device health, and queue backlog. Configuration stays with administrators." />
+        {error ? <DetailAlert title="Unable to load dashboard" description={error} /> : <div className="text-sm text-slate-500">Loading dashboard...</div>}
+      </div>
+    )
+  }
 
   return (
     <div className="min-w-0">

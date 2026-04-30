@@ -44,3 +44,8 @@ export async function getUserByIdOrUndefined(userId?: string): Promise<AdminUser
     return undefined
   }
 }
+
+export async function setUserStatus(userId: string, status: 'Active' | 'Suspended'): Promise<void> {
+  const endpoint = status === 'Suspended' ? 'suspend' : 'reactivate'
+  await api.post(`/users/${userId}/${endpoint}`, {})
+}

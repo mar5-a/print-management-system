@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, Bell, CheckCircle2 } from 'lucide-react'
 import {
@@ -22,13 +22,22 @@ function severityMeta(severity: TechAlert['severity']) {
 function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
   const navigate = useNavigate()
   const [currentAlert, setCurrentAlert] = useState(alert)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const meta = severityMeta(currentAlert.severity)
 
-  function handleAcknowledge() {
-    const nextAlert = acknowledgeTechAlert(currentAlert.id)
-
-    if (nextAlert) {
+  async function handleAcknowledge() {
+    setError(null)
+    setSaving(true)
+    try {
+      const nextAlert = await acknowledgeTechAlert(currentAlert.id)
       setCurrentAlert(nextAlert)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to acknowledge alert.'
+      setError(message)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -46,6 +55,12 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
       />
 
       <DetailPanel>
+        {error ? (
+          <div className="px-5 pt-5">
+            <DetailAlert title="Update failed" description={error} />
+          </div>
+        ) : null}
+
         {!currentAlert.acknowledged && currentAlert.severity === 'critical' && (
           <div className="px-5 pt-5">
             <DetailAlert
@@ -101,7 +116,7 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
             <button className="ui-button-ghost" onClick={() => navigate('/tech/alerts')}>
               Cancel
             </button>
-            <button className="ui-button" onClick={handleAcknowledge}>
+            <button className="ui-button" onClick={handleAcknowledge} disabled={saving}>
               Acknowledge
             </button>
           </DetailActionBar>
@@ -113,8 +128,14 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
 
 export function TechAlertDetailScreen() {
   const { alertId } = useParams()
-  const alert = getTechAlertById(alertId)
+  const [alert, setAlert] = useState<TechAlert | undefined>(undefined)
+  const [loading, setLoading] = useState(true)
 
+  useEffect(() => {
+    getTechAlertById(alertId).then(setAlert).finally(() => setLoading(false))
+  }, [alertId])
+
+  if (loading) return null
   if (!alert) {
     return <Navigate to="/tech/alerts" replace />
   }

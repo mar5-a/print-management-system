@@ -6,7 +6,7 @@ import { AdvancedFilterPanel } from '../components/ui/advanced-filter-panel'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
-import { getUserByIdOrUndefined, listUsers } from '../features/admin/users/api'
+import { getUserByIdOrUndefined, listUsers, setUserStatus } from '../features/admin/users/api'
 import type { AdminUser } from '../types/admin'
 
 export function UsersPage() {
@@ -162,13 +162,33 @@ export function UserDetailPage() {
   const { userId } = useParams()
   const [user, setUser] = useState<AdminUser | undefined>(undefined)
   const [loadingUser, setLoadingUser] = useState(true)
+  const [status, setStatus] = useState<'Active' | 'Suspended'>('Active')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   useEffect(() => {
     getUserByIdOrUndefined(userId).then(setUser).finally(() => setLoadingUser(false))
   }, [userId])
 
+  useEffect(() => {
+    if (user) setStatus(user.status)
+  }, [user])
+
   if (loadingUser) return null
   if (!user) {
     return <Navigate to="/admin/users" replace />
+  }
+
+  async function handleApply() {
+    setSaveError(null)
+    setSaving(true)
+    try {
+      await setUserStatus(user.id, status)
+      navigate('/admin/users')
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save user changes')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -185,6 +205,12 @@ export function UserDetailPage() {
       />
 
       <DetailPanel>
+        {saveError ? (
+          <div className="px-5 pt-5">
+            <DetailAlert title="Update failed" description={saveError} />
+          </div>
+        ) : null}
+
         <DetailSection title="Identity">
           <label>
             <div className="ui-detail-label">Username</div>
@@ -205,7 +231,7 @@ export function UserDetailPage() {
           </label>
           <label>
             <div className="ui-detail-label">Status</div>
-            <select className="ui-select mt-2 w-full" defaultValue={user.status}>
+            <select className="ui-select mt-2 w-full" value={status} onChange={(e) => setStatus(e.target.value as 'Active' | 'Suspended')}>
               <option>Active</option>
               <option>Suspended</option>
             </select>
@@ -231,7 +257,7 @@ export function UserDetailPage() {
           </label>
         </DetailSection>
 
-        {user.status === 'Suspended' ? (
+        {status === 'Suspended' ? (
           <div className="px-5 pt-5">
             <DetailAlert
               title="User restricted"
@@ -250,7 +276,7 @@ export function UserDetailPage() {
             <input className="ui-input mt-2" defaultValue={user.jobCount} />
           </label>
           <label className="ui-checkbox-line xl:col-span-2">
-            <input type="checkbox" defaultChecked={user.status === 'Suspended'} />
+            <input type="checkbox" checked={status === 'Suspended'} readOnly />
             <span>Restricted</span>
           </label>
           <label className="xl:col-span-2">
@@ -279,8 +305,8 @@ export function UserDetailPage() {
         </DetailSection>
 
         <DetailActionBar>
-          <button className="ui-button-ghost">Cancel</button>
-          <button className="ui-button">Apply</button>
+          <button className="ui-button-ghost" onClick={() => navigate('/admin/users')}>Cancel</button>
+          <button className="ui-button" onClick={handleApply} disabled={saving}>Apply</button>
         </DetailActionBar>
       </DetailPanel>
     </div>

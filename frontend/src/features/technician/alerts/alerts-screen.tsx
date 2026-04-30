@@ -1,6 +1,7 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, Bell, CheckCircle2 } from 'lucide-react'
+import { DetailAlert } from '@/components/ui/admin-detail'
 import { DataTable } from '@/components/ui/data-table'
 import { FilterBar } from '@/components/ui/filter-bar'
 import { PageHeader } from '@/components/ui/page-header'
@@ -14,11 +15,20 @@ function severityIcon(severity: TechAlert['severity']) {
 }
 
 export function TechAlertsScreen() {
-  const alerts = listTechAlerts()
+  const [alerts, setAlerts] = useState<TechAlert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'All' | 'Active' | 'Acknowledged'>('All')
   const deferredSearch = useDeferredValue(search)
+
+  useEffect(() => {
+    listTechAlerts()
+      .then(setAlerts)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load alerts'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filteredAlerts = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
@@ -57,6 +67,14 @@ export function TechAlertsScreen() {
           </button>
         ))}
       </FilterBar>
+
+      {error ? (
+        <div className="mt-4">
+          <DetailAlert title="Unable to load alerts" description={error} />
+        </div>
+      ) : null}
+
+      {loading ? <div className="mt-4 text-sm text-slate-500">Loading alerts...</div> : null}
 
       <div className="mt-4">
         <DataTable<TechAlert>
