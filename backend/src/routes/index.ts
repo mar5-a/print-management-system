@@ -7,6 +7,7 @@ import jobsRouter from './jobs.router.js'
 import groupsRouter from './groups.router.js'
 import dashboardRouter from './dashboard.router.js'
 import alertsRouter from './alerts.router.js'
+import departmentsRouter from './departments.router.js'
 
 const router = Router()
 
@@ -18,5 +19,6 @@ router.use('/jobs', jobsRouter)
 router.use('/groups', groupsRouter)
 router.use('/dashboard', dashboardRouter)
 router.use('/alerts', alertsRouter)
+router.use('/departments', departmentsRouter)
 
 export default router

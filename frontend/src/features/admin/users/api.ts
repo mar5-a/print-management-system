@@ -49,3 +49,32 @@ export async function setUserStatus(userId: string, status: 'Active' | 'Suspende
   const endpoint = status === 'Suspended' ? 'suspend' : 'reactivate'
   await api.post(`/users/${userId}/${endpoint}`, {})
 }
+
+export interface CreateUserPayload {
+  id: string
+  username: string
+  email: string
+  displayName: string
+  password: string
+  role: 'admin' | 'technician' | 'standard_user'
+  departmentId?: string
+  allocatedPages?: number
+}
+
+export async function createUser(payload: CreateUserPayload): Promise<AdminUser> {
+  const res = await api.post<{ data: AdminUser }>('/users', payload)
+  return mapUser(res.data)
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  await api.delete(`/users/${userId}`)
+}
+
+export async function listDepartments(): Promise<{ id: string; name: string }[]> {
+  try {
+    const res = await api.get<{ data: { id: string; name: string }[] }>('/departments')
+    return res.data
+  } catch {
+    return []
+  }
+}

@@ -77,6 +77,7 @@ export async function getUserById(id: string) {
 }
 
 export async function createUser(data: {
+  id: string
   username: string
   email: string
   displayName: string
@@ -87,18 +88,22 @@ export async function createUser(data: {
 }) {
   // Check uniqueness
   const existing = await query(
-    'SELECT id FROM users WHERE (username = $1 OR email = $2) AND deleted_at IS NULL',
-    [data.username.toLowerCase(), data.email.toLowerCase()]
+    'SELECT id FROM users WHERE (id = $1 OR username = $2 OR email = $3) AND deleted_at IS NULL',
+    [data.id, data.username.toLowerCase(), data.email.toLowerCase()]
   )
-  if (existing.rows.length) throw new ConflictError('Username or email already in use')
+  if (existing.rows.length) {
+    const clash = existing.rows[0]
+    if (clash.id === data.id) throw new ConflictError('User ID already in use')
+    throw new ConflictError('Username or email already in use')
+  }
 
   const roleResult = await query('SELECT id FROM roles WHERE name = $1', [data.role])
   if (!roleResult.rows[0]) throw new NotFoundError('Role')
 
   const userResult = await query(
-    `INSERT INTO users (username, email, display_name, department_id)
-     VALUES ($1, $2, $3, $4) RETURNING id`,
-    [data.username.toLowerCase(), data.email.toLowerCase(), data.displayName, data.departmentId ?? null]
+    `INSERT INTO users (id, username, email, display_name, department_id)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [data.id, data.username.toLowerCase(), data.email.toLowerCase(), data.displayName, data.departmentId ?? null]
   )
   const userId = userResult.rows[0].id
 
@@ -164,7 +169,7 @@ export async function reactivateUser(id: string) {
 
 export async function deleteUser(id: string) {
   await getUserById(id)
-  await query('UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id])
+  await query('UPDATE users SET deleted_at = NOW(), is_active = false, updated_at = NOW() WHERE id = $1', [id])
 }
 
 export async function getUserJobs(userId: string, limit = 20, page = 1) {

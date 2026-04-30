@@ -19,6 +19,7 @@ const listSchema = z.object({
 })
 
 const createSchema = z.object({
+  id: z.string().min(1).max(20),
   username: z.string().min(2).max(64),
   email: z.string().email(),
   displayName: z.string().min(1).max(255),
