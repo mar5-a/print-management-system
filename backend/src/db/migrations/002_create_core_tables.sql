@@ -21,7 +21,7 @@ CREATE TABLE roles (
 
 -- Users
 CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id VARCHAR(20) PRIMARY KEY,
   username VARCHAR(255) NOT NULL UNIQUE,
   email VARCHAR(255) NOT NULL UNIQUE,
   display_name VARCHAR(255) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE users (
 
 -- User Roles (many-to-many)
 CREATE TABLE user_roles (
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
   assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, role_id)
@@ -79,7 +79,7 @@ CREATE TABLE print_queues (
   department_id UUID REFERENCES departments(id),
   retention_hours INTEGER DEFAULT 24,
   cost_per_page DECIMAL(10, 4) DEFAULT 0.05,
-  created_by UUID REFERENCES users(id),
+  created_by VARCHAR(20) REFERENCES users(id),
   deleted_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -103,13 +103,13 @@ CREATE TABLE queue_printers (
 -- User Quotas
 CREATE TABLE user_quotas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id VARCHAR(20) NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   quota_period quota_period DEFAULT 'monthly',
   allocated_pages INTEGER NOT NULL,
   used_pages INTEGER DEFAULT 0,
   reserved_pages INTEGER DEFAULT 0,
   reset_at TIMESTAMP,
-  updated_by UUID REFERENCES users(id),
+  updated_by VARCHAR(20) REFERENCES users(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -121,7 +121,7 @@ CREATE TABLE user_quotas (
 -- Print Jobs
 CREATE TABLE print_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   queue_id UUID NOT NULL REFERENCES print_queues(id),
   printer_id UUID REFERENCES printers(id),
   file_name VARCHAR(255) NOT NULL,
@@ -174,7 +174,7 @@ CREATE TABLE device_errors (
   description TEXT,
   detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   resolved_at TIMESTAMP,
-  resolved_by UUID REFERENCES users(id),
+  resolved_by VARCHAR(20) REFERENCES users(id),
   deleted_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -183,7 +183,7 @@ CREATE TABLE device_errors (
 -- Notifications
 CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  target_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  target_user_id VARCHAR(20) REFERENCES users(id) ON DELETE CASCADE,
   device_error_id UUID REFERENCES device_errors(id) ON DELETE SET NULL,
   notification_type VARCHAR(100),
   title VARCHAR(255) NOT NULL,
@@ -202,7 +202,7 @@ CREATE TABLE notifications (
 -- Audit Logs
 CREATE TABLE audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  actor_user_id VARCHAR(20) REFERENCES users(id) ON DELETE SET NULL,
   action_type audit_action NOT NULL,
   target_type audit_target NOT NULL,
   target_id VARCHAR(255),

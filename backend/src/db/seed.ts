@@ -46,17 +46,17 @@ async function seed() {
 
     // ── Users ─────────────────────────────────────────────────────────────────
     interface SeedUser {
-      username: string; email: string; displayName: string
+      id: string; username: string; email: string; displayName: string
       role: string; dept: string; quotaTotal: number; quotaUsed: number
       suspended?: boolean
     }
     const users: SeedUser[] = [
-      { username: 'john.smith',    email: 'john.smith@ccm.edu.sa',    displayName: 'John Smith',    role: 'standard_user', dept: 'Computer Science',    quotaTotal: 1000, quotaUsed: 540  },
-      { username: 'emma.wilson',   email: 'emma.wilson@ccm.edu.sa',   displayName: 'Emma Wilson',   role: 'standard_user', dept: 'Data Science',        quotaTotal: 1000, quotaUsed: 980, suspended: true },
-      { username: 'michael.brown', email: 'michael.brown@ccm.edu.sa', displayName: 'Michael Brown', role: 'standard_user', dept: 'Information Systems',  quotaTotal: 5000, quotaUsed: 2120 },
-      { username: 'sarah.tech',    email: 'sarah.tech@ccm.edu.sa',    displayName: 'Sarah Tech',    role: 'technician',    dept: 'Operations',          quotaTotal: 3000, quotaUsed: 130  },
-      { username: 'david.admin',   email: 'david.admin@ccm.edu.sa',   displayName: 'David Admin',   role: 'admin',         dept: 'Operations',          quotaTotal: 10000, quotaUsed: 42  },
-      { username: 'lisa.anderson', email: 'lisa.anderson@ccm.edu.sa', displayName: 'Lisa Anderson', role: 'standard_user', dept: 'Mathematics',         quotaTotal: 5000, quotaUsed: 4210 },
+      { id: 's202270440', username: 'john.smith',    email: 'john.smith@ccm.edu.sa',    displayName: 'John Smith',    role: 'standard_user', dept: 'Computer Science',    quotaTotal: 1000, quotaUsed: 540  },
+      { id: 's202180532', username: 'emma.wilson',   email: 'emma.wilson@ccm.edu.sa',   displayName: 'Emma Wilson',   role: 'standard_user', dept: 'Data Science',        quotaTotal: 1000, quotaUsed: 980, suspended: true },
+      { id: 's202350218', username: 'michael.brown', email: 'michael.brown@ccm.edu.sa', displayName: 'Michael Brown', role: 'standard_user', dept: 'Information Systems',  quotaTotal: 5000, quotaUsed: 2120 },
+      { id: 'g202140291', username: 'sarah.tech',    email: 'sarah.tech@ccm.edu.sa',    displayName: 'Sarah Tech',    role: 'technician',    dept: 'Operations',          quotaTotal: 3000, quotaUsed: 130  },
+      { id: 'g202030105', username: 'david.admin',   email: 'david.admin@ccm.edu.sa',   displayName: 'David Admin',   role: 'admin',         dept: 'Operations',          quotaTotal: 10000, quotaUsed: 42  },
+      { id: 's202261847', username: 'lisa.anderson', email: 'lisa.anderson@ccm.edu.sa', displayName: 'Lisa Anderson', role: 'standard_user', dept: 'Mathematics',         quotaTotal: 5000, quotaUsed: 4210 },
     ]
 
     const defaultHash = hashPassword('123456')
@@ -73,9 +73,9 @@ async function seed() {
       }
 
       const uRes = await client.query(
-        `INSERT INTO users (username, email, display_name, department_id, is_suspended)
-         VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [u.username, u.email, u.displayName, deptMap[u.dept] ?? null, u.suspended ?? false]
+        `INSERT INTO users (id, username, email, display_name, department_id, is_suspended)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+        [u.id, u.username, u.email, u.displayName, deptMap[u.dept] ?? null, u.suspended ?? false]
       )
       const uid = uRes.rows[0].id
       userIds[u.username] = uid
