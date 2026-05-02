@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useEffect, useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, Bell, CheckCircle2, RotateCcw } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
@@ -14,9 +14,13 @@ function severityIcon(severity: TechAlert['severity']) {
 }
 
 export function TechAlertsScreen() {
-  const alerts = listTechAlerts()
+  const [alerts, setAlerts] = useState<TechAlert[]>([])
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    listTechAlerts().then(setAlerts)
+  }, [])
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Acknowledged'>('All')
   const [severityFilter, setSeverityFilter] = useState<'All severities' | TechAlert['severity']>('All severities')
   const deferredSearch = useDeferredValue(search)

@@ -56,22 +56,23 @@ function mapAlert(a: any): TechAlert {
 }
 
 export async function getTechDashboardSnapshot() {
-  const [dashboardRes, usersRes, printersRes] = await Promise.all([
-    api.get<{ data: { alerts: { open: number }; printers: { online: number; needs_attention: number }; pendingJobs: { total: number }; activeAlerts: unknown[] } }>('/dashboard/tech'),
+  const [dashboardRes, usersRes, printersRes, alertsRes] = await Promise.all([
+    api.get<{ data: { active_users: number; suspended_users: number; online_printers: number; problem_printers: number; held_jobs: number; open_alerts: number } }>('/dashboard'),
     api.get<{ data: Array<{ is_suspended: boolean; is_active: boolean }> }>('/users?limit=100'),
     api.get<{ data: unknown[] }>('/printers?limit=100'),
+    api.get<{ data: unknown[] }>('/alerts?limit=20'),
   ])
 
   const users = usersRes.data
   const printers = printersRes.data.map(mapPrinter)
-  const alerts = dashboardRes.data.activeAlerts.map(mapAlert)
+  const alerts = alertsRes.data.map(mapAlert)
 
-  const activeUsers = users.filter((u) => !u.is_suspended && u.is_active).length
-  const suspendedUsers = users.filter((u) => u.is_suspended).length
-  const onlinePrinters = toNumber(dashboardRes.data.printers.online)
-  const problemPrinters = toNumber(dashboardRes.data.printers.needs_attention)
-  const pendingJobs = toNumber(dashboardRes.data.pendingJobs.total)
-  const unacknowledgedAlerts = toNumber(dashboardRes.data.alerts.open)
+  const activeUsers = toNumber(dashboardRes.data.active_users)
+  const suspendedUsers = toNumber(dashboardRes.data.suspended_users)
+  const onlinePrinters = toNumber(dashboardRes.data.online_printers)
+  const problemPrinters = toNumber(dashboardRes.data.problem_printers)
+  const pendingJobs = toNumber(dashboardRes.data.held_jobs)
+  const unacknowledgedAlerts = toNumber(dashboardRes.data.open_alerts)
 
   return {
     activeUsers,

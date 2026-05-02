@@ -7,7 +7,7 @@ import {
   Printer,
   Users,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { DataTable } from '@/components/ui/data-table'
 import { PageHeader } from '@/components/ui/page-header'
 import { getTechDashboardSnapshot } from './api'
@@ -57,7 +57,16 @@ function getPrinterStatusClass(status: string) {
 }
 
 export function TechDashboardScreen() {
-  const snapshot = getTechDashboardSnapshot()
+  const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof getTechDashboardSnapshot>> | null>(null)
+
+  useEffect(() => {
+    getTechDashboardSnapshot().then(setSnapshot)
+  }, [])
+
+  if (!snapshot) {
+    return <div className="p-6 text-sm text-slate-500">Loading...</div>
+  }
+
   const activeAlerts = snapshot.alerts.filter((alert) => !alert.acknowledged)
 
   return (

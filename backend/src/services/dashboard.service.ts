@@ -1,4 +1,4 @@
-import { query } from '../db/pool.js'
+import { query } from '../db/client.js'
 
 export async function getDashboardSnapshot() {
   const [users, printers, jobs, alerts, recentJobs] = await Promise.all([

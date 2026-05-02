@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from 'pg'
+import pg, { Pool, PoolClient } from 'pg'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -31,7 +31,7 @@ export async function getClient(): Promise<PoolClient> {
 /**
  * Execute a query
  */
-export async function query(text: string, params?: any[]) {
+export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(text: string, params?: any[]): Promise<pg.QueryResult<T>> {
   const start = Date.now()
   try {
     const result = await pool.query(text, params)
