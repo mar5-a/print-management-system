@@ -28,7 +28,6 @@ export interface AdminGroup {
   quotaPerPeriod: number
   schedule: 'Monthly' | 'Semester' | 'Weekly'
   studentRestricted: boolean
-  newUserQuota: number
   defaultForNewUsers: boolean
   owner: string
 }

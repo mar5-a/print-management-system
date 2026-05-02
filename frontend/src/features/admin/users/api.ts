@@ -1,7 +1,7 @@
 import { api } from '@/lib/api'
 import type { AdminUser } from '@/types/admin'
 
-interface BackendUser {
+export interface BackendUser {
   id: string
   username: string
   email: string
@@ -146,7 +146,7 @@ function mapRoleFilterToBackend(role: AdminUser['role']) {
   return 'standard_user'
 }
 
-function mapUser(user: BackendUser): AdminUser {
+export function mapUser(user: BackendUser): AdminUser {
   return {
     id: user.id,
     username: user.username,
