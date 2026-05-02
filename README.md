@@ -179,7 +179,7 @@ Migrations live in `backend/src/db/migrations/` and are tracked in a `_migration
  
 ```bash
 npm run db:migrate   # applies all SQL files in src/db/migrations/
-npm run db:seed      # inserts dev users, departments, printers, queues
+npm run db:seed      # sets scrypt passwords for the dev users seeded by migration 002
 ```
  
 ### Run the API
@@ -226,15 +226,15 @@ npm run lint
  
 The frontend currently runs against mock data for parts of the UI; backend wiring is being progressively connected as endpoints stabilize. See `frontend/src/mocks/` for the in-memory store.
  
-### Mock authentication credentials
+### Dev / backend credentials
  
-For the front-end's mock auth layer, all users use password `123456`:
+After running `npm run db:migrate` + `npm run db:seed`, all users share password `123456`:
  
 - `admin@university.edu` (Administrator)
 - `tech@university.edu` (Technician)
 - `student@university.edu` (Student)
-- `faculty@university.edu` (Faculty)
-- `suspended@university.edu` (login blocked)
+ 
+The frontend mock layer also uses these emails (plus `faculty@university.edu` and `suspended@university.edu`) with the same password for screens not yet wired to the API.
 Login redirects by role:
  
 - `admin` → `/admin/dashboard`
@@ -314,7 +314,7 @@ Technicians cannot manage admins; this is enforced in `assertTechnicianCanManage
 | DELETE | `/:id`              | admin                  | Soft-delete printer.                              |
 | GET    | `/:id/errors`       | admin, technician      | List recent device errors.                        |
  
-`connectorType` accepts `raw_socket`, `windows_queue`, `ipp`, `hp_oxp`, or `manual`. Only `raw_socket` is implemented end-to-end at the moment.
+`connectorType` accepts `raw_socket`, `ipp`, `hp_oxp`, or `manual`. Only `raw_socket` is implemented end-to-end at the moment.
  
 ### Queues — `/api/queues`
  
@@ -366,12 +366,12 @@ PostgreSQL 16. Migrations live in `backend/src/db/migrations/` and are run by `n
 4. Applies each remaining file inside its own statement and records it.
 ### Current migration order
  
-| File                         | Contents                                                                      |
-| ---------------------------- | ----------------------------------------------------------------------------- |
-| `001_create_enums.sql`       | `job_status`, `release_mode`, `device_status`, `user_role`, `color_mode` enums. |
-| `002_create_core_tables.sql` | Departments, roles, users, user_roles, printers, queues, jobs, quotas, etc.  |
-| `003_create_indexes.sql`     | Performance indexes on hot query paths.                                       |
-| `004_create_auth_tables.sql` | `user_credentials` (password hashes, separated from `users`).                 |
+| File                                  | Contents                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| `001_initial_schema.sql`              | All core tables, indexes, triggers, and `set_updated_at()` function.          |
+| `002_seed_dev_data.sql`               | Roles, departments, dev users (`@university.edu`), printer, queue, pricing.   |
+| `003_printer_operational_metadata.sql`| Adds `serial_number`, `notes`, `toner_level` columns to `printers`.           |
+| `004_user_credentials.sql`            | `user_credentials` table (password hashes, separated from `users`).           |
  
 ### Core tables
  
@@ -387,7 +387,7 @@ PostgreSQL 16. Migrations live in `backend/src/db/migrations/` and are run by `n
 - **print_job_events** — append-only event log per job (`submitted`, `released`, `failed`, `cancelled`, …).
 - **device_errors / notifications** — printer error tracking and in-app alerts.
 - **auth_logs / audit_logs** — security and admin-action auditing.
-The full ERD is in `backend/ERD.png`.
+
  
 ### Re-seed in development
  
@@ -395,7 +395,7 @@ The full ERD is in `backend/ERD.png`.
 npm run db:seed
 ```
  
-`seed.ts` is idempotent for the static reference data (`ON CONFLICT DO NOTHING`) and matches the front-end mock store, so the same usernames work in both worlds.
+`seed.ts` sets scrypt-hashed passwords (using the server's exact parameters) for the three dev users created by migration 002. It is idempotent — safe to re-run. The same emails work in both the real API and the frontend mock layer.
  
 ## Environment Variables
  
