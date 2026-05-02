@@ -15,22 +15,23 @@ export async function login({ credential, password, sourceIp }: LoginOptions) {
   const result = await query(
     `SELECT
         u.*,
-        d.name AS department_name,
         uc.password_hash,
-        COALESCE(array_agg(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT ag.name ORDER BY ag.name) FILTER (WHERE ag.name IS NOT NULL), '{}') AS groups,
         uq.used_pages,
         uq.allocated_pages,
-        COUNT(pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
-        COUNT(pj.id) AS job_count
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
+        COUNT(DISTINCT pj.id) AS job_count
      FROM users u
-     LEFT JOIN departments d ON d.id = u.department_id
      LEFT JOIN user_credentials uc ON uc.user_id = u.id
      LEFT JOIN user_roles ur ON ur.user_id = u.id
      LEFT JOIN roles r ON r.id = ur.role_id
+     LEFT JOIN user_ad_group_memberships uagm ON uagm.user_id = u.id
+     LEFT JOIN ad_groups ag ON ag.id = uagm.group_id
      LEFT JOIN user_quotas uq ON uq.user_id = u.id
      LEFT JOIN print_jobs pj ON pj.user_id = u.id
      WHERE (LOWER(u.email) = $1 OR LOWER(u.username) = $1)
-     GROUP BY u.id, d.name, uc.password_hash, uq.used_pages, uq.allocated_pages`,
+     GROUP BY u.id, uc.password_hash, uq.used_pages, uq.allocated_pages`,
     [normalizedCredential],
   )
 
@@ -62,20 +63,21 @@ export async function getMe(userId: number) {
   const result = await query(
     `SELECT
         u.*,
-        d.name AS department_name,
-        COALESCE(array_agg(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT ag.name ORDER BY ag.name) FILTER (WHERE ag.name IS NOT NULL), '{}') AS groups,
         uq.used_pages,
         uq.allocated_pages,
-        COUNT(pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
-        COUNT(pj.id) AS job_count
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
+        COUNT(DISTINCT pj.id) AS job_count
      FROM users u
-     LEFT JOIN departments d ON d.id = u.department_id
      LEFT JOIN user_roles ur ON ur.user_id = u.id
      LEFT JOIN roles r ON r.id = ur.role_id
+     LEFT JOIN user_ad_group_memberships uagm ON uagm.user_id = u.id
+     LEFT JOIN ad_groups ag ON ag.id = uagm.group_id
      LEFT JOIN user_quotas uq ON uq.user_id = u.id
      LEFT JOIN print_jobs pj ON pj.user_id = u.id
      WHERE u.id = $1
-     GROUP BY u.id, d.name, uq.used_pages, uq.allocated_pages`,
+     GROUP BY u.id, uq.used_pages, uq.allocated_pages`,
     [userId],
   )
 

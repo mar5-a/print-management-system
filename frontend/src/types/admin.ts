@@ -7,7 +7,6 @@ export interface AdminUser {
   displayName: string
   email: string
   role: UserRole
-  department: string
   office: string
   status: 'Active' | 'Suspended'
   quotaUsed: number

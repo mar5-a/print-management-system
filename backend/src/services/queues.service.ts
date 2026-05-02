@@ -75,14 +75,15 @@ export async function listEligibleQueuesForUser(userId: number) {
     `WITH user_context AS (
         SELECT
           u.id,
-          d.id AS department_id,
-          COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles
+          COALESCE(array_agg(DISTINCT r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+          COALESCE(array_agg(DISTINCT ag.name) FILTER (WHERE ag.name IS NOT NULL), '{}') AS ad_groups
         FROM users u
-        LEFT JOIN departments d ON d.id = u.department_id
         LEFT JOIN user_roles ur ON ur.user_id = u.id
         LEFT JOIN roles r ON r.id = ur.role_id
+        LEFT JOIN user_ad_group_memberships uagm ON uagm.user_id = u.id
+        LEFT JOIN ad_groups ag ON ag.id = uagm.group_id
         WHERE u.id = $1
-        GROUP BY u.id, d.id
+        GROUP BY u.id
       )
       SELECT
         q.*,
@@ -101,7 +102,7 @@ export async function listEligibleQueuesForUser(userId: number) {
           WHERE qar.queue_id = q.id
           AND (
             (qar.rule_type = 'role' AND qar.rule_value = ANY(uc.roles))
-            OR (qar.rule_type = 'department' AND qar.rule_value = uc.department_id::text)
+            OR (qar.rule_type = 'ad_group' AND qar.rule_value = ANY(uc.ad_groups))
             OR (qar.rule_type = 'user' AND qar.rule_value = uc.id::text)
           )
         )

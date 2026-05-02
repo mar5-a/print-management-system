@@ -8,6 +8,7 @@ interface ListUsersFilters {
   search?: string
   status?: 'active' | 'suspended'
   role?: string
+  groupName?: string
   page?: number
   limit?: number
 }
@@ -19,7 +20,8 @@ interface CreateUserInput {
   universityId?: string
   password: string
   role: UserRole
-  departmentId?: number
+  groupName?: string
+  isSuspended?: boolean
   allocatedPages?: number
 }
 
@@ -27,7 +29,8 @@ interface UpdateUserInput {
   email?: string
   displayName?: string
   role?: UserRole
-  departmentId?: number | null
+  groupName?: string
+  isSuspended?: boolean
   allocatedPages?: number
 }
 
@@ -59,6 +62,16 @@ export async function listUsers(filters: ListUsersFilters): Promise<PaginatedRes
     )`)
   }
 
+  if (filters.groupName) {
+    params.push(filters.groupName)
+    conditions.push(`EXISTS (
+      SELECT 1
+      FROM user_ad_group_memberships group_filter_membership
+      JOIN ad_groups group_filter_group ON group_filter_group.id = group_filter_membership.group_id
+      WHERE group_filter_membership.user_id = u.id AND group_filter_group.name = $${params.length}
+    )`)
+  }
+
   const where = conditions.join(' AND ')
   const count = await query<{ count: string }>(
     `SELECT COUNT(DISTINCT u.id)::text AS count FROM users u WHERE ${where}`,
@@ -69,20 +82,21 @@ export async function listUsers(filters: ListUsersFilters): Promise<PaginatedRes
   const result = await query(
     `SELECT
         u.*,
-        d.name AS department_name,
         COALESCE(array_agg(DISTINCT r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT ag.name ORDER BY ag.name) FILTER (WHERE ag.name IS NOT NULL), '{}') AS groups,
         uq.used_pages,
         uq.allocated_pages,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
         COUNT(DISTINCT pj.id) AS job_count
      FROM users u
-     LEFT JOIN departments d ON d.id = u.department_id
      LEFT JOIN user_roles ur ON ur.user_id = u.id
      LEFT JOIN roles r ON r.id = ur.role_id
+     LEFT JOIN user_ad_group_memberships uagm ON uagm.user_id = u.id
+     LEFT JOIN ad_groups ag ON ag.id = uagm.group_id
      LEFT JOIN user_quotas uq ON uq.user_id = u.id
      LEFT JOIN print_jobs pj ON pj.user_id = u.id
      WHERE ${where}
-     GROUP BY u.id, d.name, uq.used_pages, uq.allocated_pages
+     GROUP BY u.id, uq.used_pages, uq.allocated_pages
      ORDER BY u.display_name
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
@@ -103,20 +117,21 @@ export async function getUserByPublicId(id: string) {
   const result = await query(
     `SELECT
         u.*,
-        d.name AS department_name,
         COALESCE(array_agg(DISTINCT r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT ag.name ORDER BY ag.name) FILTER (WHERE ag.name IS NOT NULL), '{}') AS groups,
         uq.used_pages,
         uq.allocated_pages,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
         COUNT(DISTINCT pj.id) AS job_count
      FROM users u
-     LEFT JOIN departments d ON d.id = u.department_id
      LEFT JOIN user_roles ur ON ur.user_id = u.id
      LEFT JOIN roles r ON r.id = ur.role_id
+     LEFT JOIN user_ad_group_memberships uagm ON uagm.user_id = u.id
+     LEFT JOIN ad_groups ag ON ag.id = uagm.group_id
      LEFT JOIN user_quotas uq ON uq.user_id = u.id
      LEFT JOIN print_jobs pj ON pj.user_id = u.id
      WHERE u.user_uuid::text = $1 OR u.id::text = $1
-     GROUP BY u.id, d.name, uq.used_pages, uq.allocated_pages`,
+     GROUP BY u.id, uq.used_pages, uq.allocated_pages`,
     [id],
   )
 
@@ -140,6 +155,19 @@ export async function getUserInternalId(publicId: string) {
   return Number(result.rows[0].id)
 }
 
+async function assertUserManagementTargetIsEditable(publicId: string) {
+  const target = await getUserByPublicId(publicId)
+
+  if (target.role === 'admin') {
+    throw new ForbiddenError('Administrator accounts are view-only')
+  }
+}
+
+export async function listUserGroups() {
+  const result = await query<{ name: string }>('SELECT name FROM ad_groups ORDER BY name')
+  return result.rows.map((row) => row.name)
+}
+
 export async function createUser(input: CreateUserInput) {
   const userUuid = await transaction(async (client) => {
     const existing = await client.query('SELECT id FROM users WHERE username = $1 OR email = $2', [
@@ -152,10 +180,10 @@ export async function createUser(input: CreateUserInput) {
     }
 
     const user = await client.query<{ id: number; user_uuid: string }>(
-      `INSERT INTO users (username, email, display_name, university_id, department_id)
+      `INSERT INTO users (username, email, display_name, university_id, is_suspended)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, user_uuid`,
-      [input.username, input.email, input.displayName, input.universityId ?? null, input.departmentId ?? null],
+      [input.username, input.email, input.displayName, input.universityId ?? null, input.isSuspended ?? false],
     )
     const userId = Number(user.rows[0].id)
 
@@ -175,6 +203,23 @@ export async function createUser(input: CreateUserInput) {
       [userId, input.allocatedPages ?? 500],
     )
 
+    if (input.groupName) {
+      const group = await client.query<{ id: number }>(
+        `INSERT INTO ad_groups (name)
+         VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        [input.groupName],
+      )
+
+      await client.query(
+        `INSERT INTO user_ad_group_memberships (user_id, group_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [userId, Number(group.rows[0].id)],
+      )
+    }
+
     return String(user.rows[0].user_uuid)
   })
 
@@ -182,6 +227,7 @@ export async function createUser(input: CreateUserInput) {
 }
 
 export async function updateUser(publicId: string, input: UpdateUserInput) {
+  await assertUserManagementTargetIsEditable(publicId)
   const userId = await getUserInternalId(publicId)
   const fields: string[] = []
   const params: unknown[] = []
@@ -189,7 +235,7 @@ export async function updateUser(publicId: string, input: UpdateUserInput) {
   const fieldMap = {
     email: input.email,
     display_name: input.displayName,
-    department_id: input.departmentId,
+    is_suspended: input.isSuspended,
   }
 
   for (const [field, value] of Object.entries(fieldMap)) {
@@ -225,22 +271,57 @@ export async function updateUser(publicId: string, input: UpdateUserInput) {
     )
   }
 
+  if (input.groupName !== undefined) {
+    await transaction(async (client) => {
+      const group = await client.query<{ id: number }>(
+        `INSERT INTO ad_groups (name)
+         VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        [input.groupName],
+      )
+
+      await client.query('DELETE FROM user_ad_group_memberships WHERE user_id = $1', [userId])
+      await client.query(
+        `INSERT INTO user_ad_group_memberships (user_id, group_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [userId, Number(group.rows[0].id)],
+      )
+    })
+  }
+
   return getUserByPublicId(publicId)
 }
 
 export async function suspendUser(publicId: string) {
+  await assertUserManagementTargetIsEditable(publicId)
   const userId = await getUserInternalId(publicId)
   await query('UPDATE users SET is_suspended = TRUE, updated_at = NOW() WHERE id = $1', [userId])
 }
 
 export async function reactivateUser(publicId: string) {
+  await assertUserManagementTargetIsEditable(publicId)
   const userId = await getUserInternalId(publicId)
   await query('UPDATE users SET is_suspended = FALSE, is_active = TRUE, updated_at = NOW() WHERE id = $1', [userId])
 }
 
 export async function deleteUser(publicId: string) {
+  await assertUserManagementTargetIsEditable(publicId)
   const userId = await getUserInternalId(publicId)
-  await query('UPDATE users SET is_active = FALSE, is_suspended = TRUE, updated_at = NOW() WHERE id = $1', [userId])
+  await transaction(async (client) => {
+    await client.query('UPDATE technician_privileges SET updated_by = NULL WHERE updated_by = $1', [userId])
+    await client.query('UPDATE user_quotas SET updated_by = NULL WHERE updated_by = $1', [userId])
+    await client.query('UPDATE print_queues SET created_by = NULL WHERE created_by = $1', [userId])
+    await client.query('UPDATE device_errors SET resolved_by = NULL WHERE resolved_by = $1', [userId])
+    await client.query(
+      `DELETE FROM queue_access_rules
+       WHERE rule_type = 'user' AND rule_value IN ($1, $2)`,
+      [String(userId), publicId],
+    )
+    await client.query('DELETE FROM print_jobs WHERE user_id = $1', [userId])
+    await client.query('DELETE FROM users WHERE id = $1', [userId])
+  })
 }
 
 export async function assertTechnicianCanManageTarget(actorRoles: UserRole[], targetPublicId: string) {

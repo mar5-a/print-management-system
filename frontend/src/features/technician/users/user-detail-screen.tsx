@@ -118,10 +118,6 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
             <input className="ui-input mt-2" value={user.email} readOnly tabIndex={-1} />
           </label>
           <label>
-            <div className="ui-detail-label">Department</div>
-            <input className="ui-input mt-2" value={user.department} readOnly tabIndex={-1} />
-          </label>
-          <label>
             <div className="ui-detail-label">Office</div>
             <input className="ui-input mt-2" value={user.office} readOnly tabIndex={-1} />
           </label>

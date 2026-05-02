@@ -20,7 +20,7 @@ export function TechUsersScreen() {
     return users.filter((user) => {
       const matchesSearch =
         !query ||
-        [user.displayName, user.username, user.department, user.role].some((v) =>
+        [user.displayName, user.username, user.role].some((v) =>
           v.toLowerCase().includes(query),
         )
       const matchesScope = scope === 'All' ? true : user.status === scope
