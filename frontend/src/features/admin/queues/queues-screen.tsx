@@ -1,5 +1,5 @@
 import { Plus, RotateCcw, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FilterBar } from '@/components/composite/filter-bar'
 import { PageHeader } from '@/components/composite/page-header'
@@ -15,11 +15,15 @@ import type { QueueAvailabilityScope } from './types'
 
 export function QueuesScreen() {
   const navigate = useNavigate()
-  const [queues, setQueues] = useState(() => listQueues())
+  const [queues, setQueues] = useState<AdminQueue[]>([])
+
+  useEffect(() => {
+    listQueues().then(setQueues).catch(console.error)
+  }, [])
   const { availability, audienceFilter, deleteFilter, filteredQueues, resetFilters, search, setAudienceFilter, setAvailability, setDeleteFilter, setSearch, setStatusFilter, statusFilter } = useQueueFilters(queues)
   const { draft, isCreateOpen, resetDraft, setCreateOpen, setDraft, toggleDraftSelection } = useQueueForm()
 
-  function handleCreateQueue(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateQueue(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const trimmedName = draft.name.trim()
@@ -58,8 +62,9 @@ export function QueuesScreen() {
       ],
     }
 
-    createQueue(createdQueue)
-    setQueues(listQueues())
+    await createQueue(createdQueue)
+    const refreshed = await listQueues()
+    setQueues(refreshed)
     resetDraft()
     setCreateOpen(false)
     navigate(`/admin/queues/${createdQueue.id}`)
