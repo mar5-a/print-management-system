@@ -23,10 +23,6 @@ const envSchema = z.object({
   WINDOWS_PRINT_COMMAND: z.string().default(''),
   WINDOWS_PRINT_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   JWT_SECRET: z.string().default('dev-only-change-me'),
-  ENABLE_DEV_PRINT_ROUTES: z
-    .string()
-    .default('false')
-    .transform((value) => value.toLowerCase() === 'true'),
   GHOSTSCRIPT_BIN: z.string().default('gs'),
   UPLOAD_DIR: z.string().default('storage/uploads'),
   CONVERTED_DIR: z.string().default('storage/converted'),
@@ -64,7 +60,6 @@ export const config = {
     printTimeoutMs: env.WINDOWS_PRINT_TIMEOUT_MS,
   },
   jwtSecret: env.JWT_SECRET,
-  enableDevPrintRoutes: env.ENABLE_DEV_PRINT_ROUTES,
   ghostscriptBin: env.GHOSTSCRIPT_BIN,
   uploadDir: resolveBackendPath(env.UPLOAD_DIR),
   convertedDir: resolveBackendPath(env.CONVERTED_DIR),

@@ -15,14 +15,11 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/api', apiRouter)
-
-if (config.enableDevPrintRoutes) {
-  app.use('/dev', devPrintRouter)
-}
+app.use('/dev', devPrintRouter)
 
 app.use(errorHandler)
 
 app.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`)
-  console.log(`Diagnostic print routes ${config.enableDevPrintRoutes ? 'enabled' : 'disabled'}`)
+  console.log(`Direct printer target ${config.printer.host}:${config.printer.port}`)
 })
