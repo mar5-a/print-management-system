@@ -1,109 +1,66 @@
-import { query } from '../db/client.js'
+import { query } from '../db/pool.js'
 
-export async function getAdminDashboard() {
-  const [users, printers, queues, jobs, quota] = await Promise.all([
-    query(`SELECT COUNT(*) AS total,
-                  COUNT(*) FILTER (WHERE is_suspended = false AND is_active = true) AS active,
-                  COUNT(*) FILTER (WHERE is_suspended = true) AS suspended
-           FROM users WHERE deleted_at IS NULL`),
-
-    query(`SELECT COUNT(*) AS total,
-                  COUNT(*) FILTER (WHERE status = 'online') AS online,
-                  COUNT(*) FILTER (WHERE status = 'offline') AS offline,
-                  COUNT(*) FILTER (WHERE status = 'maintenance') AS maintenance,
-                  COUNT(*) FILTER (WHERE status = 'error') AS error
-           FROM printers WHERE deleted_at IS NULL`),
-
-    query(`SELECT COUNT(*) AS total,
-                  COUNT(*) FILTER (WHERE status = 'online' AND enabled = true) AS active,
-                  COUNT(*) FILTER (WHERE enabled = false) AS disabled,
-                  COUNT(*) FILTER (WHERE release_mode = 'secure_release') AS secure_release
-           FROM print_queues WHERE deleted_at IS NULL`),
-
-    query(`SELECT COUNT(*) AS total,
-                  COUNT(*) FILTER (WHERE status IN ('held','submitted')) AS pending,
-                  COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= NOW() - INTERVAL '24 hours') AS completed_today,
-                  COUNT(*) FILTER (WHERE status = 'failed') AS failed
-           FROM print_jobs WHERE deleted_at IS NULL`),
-
-    query(`SELECT SUM(used_pages) AS total_used, SUM(allocated_pages) AS total_allocated
-           FROM user_quotas`),
-  ])
-
-  const recentJobs = await query(
-    `SELECT pj.id, u.username, pq.name AS queue_name, p.name AS printer_name,
-            pj.total_pages, pj.status, pj.submitted_at
-     FROM print_jobs pj
-     JOIN users u ON u.id = pj.user_id
-     JOIN print_queues pq ON pq.id = pj.queue_id
-     LEFT JOIN printers p ON p.id = pj.printer_id
-     WHERE pj.deleted_at IS NULL
-     ORDER BY pj.submitted_at DESC LIMIT 10`
-  )
-
-  return {
-    users: users.rows[0],
-    printers: printers.rows[0],
-    queues: queues.rows[0],
-    jobs: jobs.rows[0],
-    quota: quota.rows[0],
-    recentJobs: recentJobs.rows,
-  }
-}
-
-export async function getTechDashboard() {
-  const [alerts, printers, pendingJobs] = await Promise.all([
-    query(`SELECT COUNT(*) AS total,
-                  COUNT(*) FILTER (WHERE severity = 'critical' AND resolved_at IS NULL) AS critical,
-                  COUNT(*) FILTER (WHERE resolved_at IS NULL) AS open
-           FROM device_errors WHERE deleted_at IS NULL`),
-
-    query(`SELECT COUNT(*) AS total,
-                  COUNT(*) FILTER (WHERE status = 'online') AS online,
-                  COUNT(*) FILTER (WHERE status != 'online') AS needs_attention
-           FROM printers WHERE deleted_at IS NULL`),
-
-    query(`SELECT COUNT(*) AS total
-           FROM print_jobs WHERE status IN ('held','submitted') AND deleted_at IS NULL`),
-  ])
-
-  const activeAlerts = await query(
-    `SELECT de.*, p.name AS printer_name, p.location
-     FROM device_errors de
-     JOIN printers p ON p.id = de.printer_id
-     WHERE de.resolved_at IS NULL AND de.deleted_at IS NULL
-     ORDER BY de.detected_at DESC LIMIT 10`
-  )
-
-  return {
-    alerts: alerts.rows[0],
-    printers: printers.rows[0],
-    pendingJobs: pendingJobs.rows[0],
-    activeAlerts: activeAlerts.rows,
-  }
-}
-
-export async function getPortalDashboard(userId: string) {
-  const [quota, recentJobs] = await Promise.all([
-    query(
-      `SELECT uq.*, u.display_name, d.name AS department_name
-       FROM user_quotas uq
-       JOIN users u ON u.id = uq.user_id
-       LEFT JOIN departments d ON d.id = u.department_id
-       WHERE uq.user_id = $1`,
-      [userId]
+export async function getDashboardSnapshot() {
+  const [users, printers, jobs, alerts, recentJobs] = await Promise.all([
+    query<{ active_users: string; suspended_users: string }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE is_active = TRUE AND is_suspended = FALSE)::text AS active_users,
+         COUNT(*) FILTER (WHERE is_suspended = TRUE)::text AS suspended_users
+       FROM users`,
+    ),
+    query<{ total_printers: string; online_printers: string; problem_printers: string }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status <> 'archived')::text AS total_printers,
+         COUNT(*) FILTER (WHERE status = 'online')::text AS online_printers,
+         COUNT(*) FILTER (WHERE status NOT IN ('online', 'archived'))::text AS problem_printers
+       FROM printers`,
+    ),
+    query<{ held_jobs: string; sent_today: string; pages_today: string; total_pages: string }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'held')::text AS held_jobs,
+         COUNT(*) FILTER (WHERE status IN ('sent_to_printer', 'queued') AND released_at::date = CURRENT_DATE)::text AS sent_today,
+         COALESCE(SUM(page_count * copy_count) FILTER (WHERE released_at::date = CURRENT_DATE), 0)::text AS pages_today,
+         COALESCE(SUM(page_count * copy_count) FILTER (WHERE status IN ('sent_to_printer', 'queued', 'completed')), 0)::text AS total_pages
+       FROM print_jobs`,
+    ),
+    query<{ open_alerts: string }>(
+      `SELECT COUNT(*)::text AS open_alerts FROM device_errors WHERE status <> 'resolved'`,
     ),
     query(
-      `SELECT pj.id, pj.file_name, pj.status, pj.total_pages, pj.submitted_at,
-              pq.name AS queue_name, p.name AS printer_name
+      `SELECT
+         pj.job_uuid,
+         u.username,
+         COALESCE(p.name, q.name) AS device,
+         (pj.page_count * pj.copy_count) AS pages,
+         pj.status,
+         pj.submitted_at
        FROM print_jobs pj
-       JOIN print_queues pq ON pq.id = pj.queue_id
+       JOIN users u ON u.id = pj.user_id
+       JOIN print_queues q ON q.id = pj.queue_id
        LEFT JOIN printers p ON p.id = pj.printer_id
-       WHERE pj.user_id = $1 AND pj.deleted_at IS NULL
-       ORDER BY pj.submitted_at DESC LIMIT 5`,
-      [userId]
+       ORDER BY pj.submitted_at DESC
+       LIMIT 10`,
     ),
   ])
 
-  return { quota: quota.rows[0] ?? null, recentJobs: recentJobs.rows }
+  return {
+    active_users: Number(users.rows[0]?.active_users ?? 0),
+    suspended_users: Number(users.rows[0]?.suspended_users ?? 0),
+    total_printers: Number(printers.rows[0]?.total_printers ?? 0),
+    online_printers: Number(printers.rows[0]?.online_printers ?? 0),
+    problem_printers: Number(printers.rows[0]?.problem_printers ?? 0),
+    held_jobs: Number(jobs.rows[0]?.held_jobs ?? 0),
+    sent_today: Number(jobs.rows[0]?.sent_today ?? 0),
+    pages_today: Number(jobs.rows[0]?.pages_today ?? 0),
+    total_pages: Number(jobs.rows[0]?.total_pages ?? 0),
+    open_alerts: Number(alerts.rows[0]?.open_alerts ?? 0),
+    recent_jobs: recentJobs.rows.map((row) => ({
+      id: String(row.job_uuid),
+      user: String(row.username),
+      device: String(row.device),
+      pages: Number(row.pages),
+      status: String(row.status),
+      submitted_at: row.submitted_at,
+    })),
+  }
 }

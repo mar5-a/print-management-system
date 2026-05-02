@@ -2,71 +2,57 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { validateBody, validateQuery } from '../middleware/validate.js'
+import { created, noContent, ok, paginated } from '../lib/response.js'
 import * as printersService from '../services/printers.service.js'
-import { ok, created, noContent, paginated } from '../lib/response.js'
 
 const router = Router()
 router.use(authenticate)
 
 const listSchema = z.object({
-  status: z.enum(['online', 'offline', 'error', 'maintenance']).optional(),
+  status: z.enum(['online', 'offline', 'maintenance', 'disabled']).optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
 const createSchema = z.object({
-  name: z.string().min(1).max(255),
-  model: z.string().max(255).optional(),
+  name: z.string().min(1).max(150),
+  model: z.string().max(150).optional(),
   ipAddress: z.string().max(45).optional(),
   location: z.string().max(255).optional(),
-  isColor: z.boolean().default(true),
-  supportsDuplex: z.boolean().default(true),
-  costPerBwPage: z.number().positive().default(0.05),
-  costPerColorPage: z.number().positive().default(0.15),
+  status: z.enum(['online', 'offline', 'maintenance', 'disabled']).optional(),
+  isColor: z.boolean().optional(),
+  supportsDuplex: z.boolean().optional(),
   serialNumber: z.string().max(255).optional(),
   notes: z.string().optional(),
+  connectorType: z.enum(['raw_socket', 'windows_queue', 'ipp', 'hp_oxp', 'manual']).optional(),
+  connectorTarget: z.string().max(255).optional(),
 })
 
-const updateSchema = createSchema.partial().extend({
-  status: z.enum(['online', 'offline', 'error', 'maintenance']).optional(),
-  tonerLevel: z.number().int().min(0).max(100).optional(),
-})
-
-// GET /api/printers
 router.get('/', validateQuery(listSchema), async (req, res) => {
-  const result = await printersService.listPrinters((req as any).parsedQuery as z.infer<typeof listSchema>)
-  paginated(res, result)
+  const filters = (req as typeof req & { parsedQuery: z.infer<typeof listSchema> }).parsedQuery
+  paginated(res, await printersService.listPrinters(filters))
 })
 
-// POST /api/printers
 router.post('/', requireRole('admin'), validateBody(createSchema), async (req, res) => {
-  const printer = await printersService.createPrinter(req.body as z.infer<typeof createSchema>)
-  created(res, printer)
+  created(res, await printersService.createPrinter(req.body as z.infer<typeof createSchema>))
 })
 
-// GET /api/printers/:id
 router.get('/:id', async (req, res) => {
-  const printer = await printersService.getPrinterById(req.params.id)
-  ok(res, printer)
+  ok(res, await printersService.getPrinterById(String(req.params.id)))
 })
 
-// PATCH /api/printers/:id
-router.patch('/:id', requireRole('admin', 'technician'), validateBody(updateSchema), async (req, res) => {
-  const printer = await printersService.updatePrinter(req.params.id, req.body as z.infer<typeof updateSchema>)
-  ok(res, printer)
+router.patch('/:id', requireRole('admin', 'technician'), validateBody(createSchema.partial()), async (req, res) => {
+  ok(res, await printersService.updatePrinter(String(req.params.id), req.body as z.infer<typeof createSchema>))
 })
 
-// DELETE /api/printers/:id
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await printersService.deletePrinter(req.params.id)
+  await printersService.deletePrinter(String(req.params.id))
   noContent(res)
 })
 
-// GET /api/printers/:id/errors
 router.get('/:id/errors', requireRole('admin', 'technician'), async (req, res) => {
-  const errors = await printersService.getPrinterErrors(req.params.id)
-  ok(res, errors)
+  ok(res, await printersService.getPrinterErrors(String(req.params.id)))
 })
 
-export default router
+export { router as printersRouter }

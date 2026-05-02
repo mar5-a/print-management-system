@@ -1,80 +1,67 @@
 import { api } from '@/lib/api'
 import type { AdminUser } from '@/types/admin'
 
-function mapRole(role: string): AdminUser['role'] {
-  if (role === 'admin') return 'Administrator'
-  if (role === 'technician') return 'Technician'
-  return 'Student'
+interface BackendUser {
+  id: string
+  username: string
+  email: string
+  display_name: string
+  department_name: string | null
+  role: 'admin' | 'technician' | 'standard_user'
+  is_suspended: boolean
+  quota_used: number
+  quota_total: number
+  job_count: number
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapUser(u: any): AdminUser {
-  return {
-    id: u.id,
-    username: u.username,
-    displayName: u.display_name,
-    email: u.email,
-    role: mapRole(u.role),
-    department: u.department_name ?? '—',
-    office: '—',
-    status: u.is_suspended ? 'Suspended' : 'Active',
-    quotaUsed: Number(u.used_pages ?? 0),
-    quotaTotal: Number(u.allocated_pages ?? 1000),
-    groups: [],
-    cardId: '—',
-    primaryIdentity: u.username.toUpperCase(),
-    secondaryIdentity: '—',
-    notes: '',
-    lastSeen: '—',
-    jobCount: 0,
-  }
+interface PaginatedUsers {
+  data: BackendUser[]
 }
 
-export async function listUsers(): Promise<AdminUser[]> {
-  const res = await api.get<{ data: AdminUser[] }>('/users?limit=100')
-  return res.data.map(mapUser)
+interface ApiData<T> {
+  data: T
 }
 
-export async function getUserByIdOrUndefined(userId?: string): Promise<AdminUser | undefined> {
+export async function listUsers() {
+  const response = await api.get<PaginatedUsers>('/users?limit=100')
+  return response.data.map(mapUser)
+}
+
+export async function getUserByIdOrUndefined(userId?: string) {
   if (!userId) return undefined
+
   try {
-    const res = await api.get<{ data: AdminUser }>(`/users/${userId}`)
-    return mapUser(res.data)
+    const response = await api.get<ApiData<BackendUser>>(`/users/${userId}`)
+    return mapUser(response.data)
   } catch {
     return undefined
   }
 }
 
-export async function setUserStatus(userId: string, status: 'Active' | 'Suspended'): Promise<void> {
-  const endpoint = status === 'Suspended' ? 'suspend' : 'reactivate'
-  await api.post(`/users/${userId}/${endpoint}`, {})
+function mapRole(role: BackendUser['role']): AdminUser['role'] {
+  if (role === 'admin') return 'Administrator'
+  if (role === 'technician') return 'Technician'
+  return 'Student'
 }
 
-export interface CreateUserPayload {
-  id: string
-  username: string
-  email: string
-  displayName: string
-  password: string
-  role: 'admin' | 'technician' | 'standard_user'
-  departmentId?: string
-  allocatedPages?: number
-}
-
-export async function createUser(payload: CreateUserPayload): Promise<AdminUser> {
-  const res = await api.post<{ data: AdminUser }>('/users', payload)
-  return mapUser(res.data)
-}
-
-export async function deleteUser(userId: string): Promise<void> {
-  await api.delete(`/users/${userId}`)
-}
-
-export async function listDepartments(): Promise<{ id: string; name: string }[]> {
-  try {
-    const res = await api.get<{ data: { id: string; name: string }[] }>('/departments')
-    return res.data
-  } catch {
-    return []
+function mapUser(user: BackendUser): AdminUser {
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.display_name,
+    email: user.email,
+    role: mapRole(user.role),
+    department: user.department_name ?? 'General Access',
+    office: '—',
+    status: user.is_suspended ? 'Suspended' : 'Active',
+    quotaUsed: user.quota_used,
+    quotaTotal: user.quota_total,
+    groups: [],
+    cardId: '—',
+    primaryIdentity: user.username.toUpperCase(),
+    secondaryIdentity: '—',
+    notes: '',
+    lastSeen: '—',
+    jobCount: user.job_count,
   }
 }

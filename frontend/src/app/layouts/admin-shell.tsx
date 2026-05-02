@@ -39,8 +39,6 @@ export function AdminShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const outlet = useOutlet()
-  const sectionTitle =
-    navItems.find((item) => location.pathname.startsWith(item.href))?.label ?? 'Admin'
 
   const handleLogout = () => {
     const confirmed = window.confirm('Are you sure you want to log out?')
@@ -63,32 +61,38 @@ export function AdminShell() {
               Current scope: admin operations
             </span>
           </div>
-          <div className="flex items-center gap-3 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/80">
-            <span>Last sync 09:42</span>
-            <span className="hidden sm:inline">AD stable</span>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-3 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/80 sm:flex">
+              <span>Last sync 09:42</span>
+              <span>AD stable</span>
+            </div>
+            <button className="inline-flex h-7 items-center gap-1.5 border border-white/20 px-2 text-[0.74rem] font-medium text-white/90 transition hover:bg-white/10">
+              <Bell className="size-3.5" />
+              Alerts
+            </button>
           </div>
         </div>
       </div>
 
       <div className="grid min-h-[calc(100vh-2.25rem)] max-w-[1800px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[248px_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="flex flex-col border-b border-line/70 bg-[#111827] px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
-          <div className="flex items-start justify-between gap-4 border-b border-line pb-5">
+        <aside className="flex min-h-0 flex-col border-b border-line/70 bg-[#111827] px-4 py-4 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
+          <div className="shrink-0 flex items-start justify-between gap-4 border-b border-slate-700 pb-4">
             <div>
               <div className="ui-kicker text-slate-300">Print Management</div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-white">CCM Admin</div>
-              <p className="mt-2 max-w-[16rem] text-sm text-slate-400">Operations console</p>
+              <div className="mt-1.5 text-xl font-semibold tracking-tight text-white">CCM Admin</div>
+              <p className="mt-1 text-sm text-slate-400">Operations console</p>
             </div>
             <DatabaseZap className="mt-1 size-5 text-accent-500" />
           </div>
 
-          <nav className="mt-6 flex-1 space-y-1.5">
+          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
                 className={({ isActive }) =>
                   cn(
-                    'relative flex items-center gap-3 overflow-hidden border px-3 py-3 text-sm font-medium transition',
+                    'relative flex items-center gap-3 overflow-hidden border px-3 py-2.5 text-sm font-medium transition',
                     isActive
                       ? 'border-ink-950 bg-ink-950 text-white'
                       : 'border-transparent text-slate-300 hover:border-line hover:bg-slate-700 hover:text-white',
@@ -112,7 +116,7 @@ export function AdminShell() {
             ))}
           </nav>
 
-          <div className="mt-auto border-t border-slate-600 pt-5">
+          <div className="mt-4 shrink-0 border-t border-slate-700 pt-4">
             <div className="ui-kicker text-slate-300">Operator</div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <div>
@@ -131,26 +135,6 @@ export function AdminShell() {
         </aside>
 
         <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
-          <header className="border-b border-line/80 bg-white/80 backdrop-blur">
-            <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <div className="ui-kicker">{sectionTitle}</div>
-                <div className="mt-2 flex items-center gap-3">
-                  <h1 className="text-2xl font-semibold tracking-tight text-ink-950">
-                    Administrative Workspace
-                  </h1>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button className="ui-button-ghost">
-                  <Bell className="size-4" />
-                  Alerts
-                </button>
-              </div>
-            </div>
-          </header>
-
           <main className="px-4 py-5 sm:px-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div

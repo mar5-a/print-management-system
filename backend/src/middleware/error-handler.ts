@@ -1,26 +1,23 @@
-import type { Request, Response, NextFunction } from 'express'
+import type { ErrorRequestHandler } from 'express'
 import { AppError } from '../lib/errors.js'
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      success: false,
-      error: { code: err.code, message: err.message },
+export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+  if (error instanceof AppError) {
+    res.status(error.statusCode).json({
+      error: {
+        code: error.code,
+        message: error.message,
+      },
     })
+    return
   }
 
-  // JWT errors
-  if (err instanceof Error && (err.message === 'Token expired' || err.message === 'Invalid signature' || err.message === 'Malformed token')) {
-    return res.status(401).json({
-      success: false,
-      error: { code: 'UNAUTHORIZED', message: err.message },
-    })
-  }
+  const message = error instanceof Error ? error.message : 'Unexpected backend error'
 
-  // Unknown errors - don't leak internals
-  console.error('Unhandled error:', err)
-  return res.status(500).json({
-    success: false,
-    error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+  res.status(500).json({
+    error: {
+      code: 'INTERNAL_ERROR',
+      message,
+    },
   })
 }

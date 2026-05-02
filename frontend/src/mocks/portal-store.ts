@@ -35,8 +35,17 @@ const portalUserProfiles: PortalUserProfileRecord[] = [
 ]
 
 function toPortalUserProfile(profile: PortalUserProfileRecord): PortalUserProfile {
-  const { email: _, ...safeProfile } = profile
-  return safeProfile
+  return {
+    id: profile.id,
+    username: profile.username,
+    displayName: profile.displayName,
+    department: profile.department,
+    role: profile.role,
+    assignedQueueId: profile.assignedQueueId,
+    quotaUsed: profile.quotaUsed,
+    quotaTotal: profile.quotaTotal,
+    retentionHours: profile.retentionHours,
+  }
 }
 
 function getDefaultPortalProfile(): PortalUserProfileRecord {

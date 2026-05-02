@@ -14,6 +14,7 @@ export function usePortalSubmissionForm() {
   const [file, setFile] = useState<File | null>(null)
   const [draft, setDraft] = useState<PortalSubmissionDraft>(initialDraft)
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   function resetForm() {
     setFile(null)
@@ -24,9 +25,11 @@ export function usePortalSubmissionForm() {
     draft,
     feedback,
     file,
+    isSubmitting,
     resetForm,
     setDraft,
     setFeedback,
     setFile,
+    setIsSubmitting,
   }
 }

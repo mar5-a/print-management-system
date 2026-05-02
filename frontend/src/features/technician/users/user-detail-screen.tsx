@@ -77,27 +77,14 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
         ) : null}
 
         {isSuspended && (
-          <div className="px-5 pt-5">
-            <DetailAlert
-              title="Account suspended"
-              description="This account cannot submit or release print jobs."
-            />
-          </div>
+          <DetailAlert
+            className="mb-0"
+            title="User restricted"
+            description="This account cannot submit or release print jobs until it is reactivated."
+          />
         )}
 
-        <DetailSection title="Identity">
-          <label>
-            <div className="ui-detail-label">Username</div>
-            <input className="ui-input mt-2 font-mono" value={user.username} readOnly tabIndex={-1} />
-          </label>
-          <label>
-            <div className="ui-detail-label">Full name</div>
-            <input className="ui-input mt-2" value={user.displayName} readOnly tabIndex={-1} />
-          </label>
-          <div>
-            <div className="ui-detail-label">Role</div>
-            <input className="ui-input mt-2" value={user.role} readOnly tabIndex={-1} />
-          </div>
+        <DetailSection title="Access and quota">
           <label>
             <div className="ui-detail-label">Status</div>
             <select className="ui-select mt-2 w-full" value={status} onChange={(e) => setStatus(e.target.value as 'Active' | 'Suspended')} disabled={!canManageAccount || isSaving}>
@@ -105,9 +92,10 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
               <option>Suspended</option>
             </select>
           </label>
-        </DetailSection>
-
-        <DetailSection title="Quota">
+          <label>
+            <div className="ui-detail-label">Role</div>
+            <input className="ui-input mt-2" value={user.role} readOnly tabIndex={-1} />
+          </label>
           <label>
             <div className="ui-detail-label">Pages used</div>
             <input className="ui-input mt-2" value={user.quotaUsed} readOnly tabIndex={-1} />
@@ -124,17 +112,48 @@ function TechUserDetailInner({ user }: { user: AdminUser }) {
           </label>
           <div>
             <div className="ui-detail-label">Balance</div>
-            <div className="mt-2 text-base font-semibold text-ink-950">
+            <div className="mt-2 flex h-10 items-center border border-line bg-white px-3 text-base font-semibold text-ink-950">
               {quotaTotal - user.quotaUsed}
             </div>
           </div>
           <div>
             <div className="ui-detail-label">Total jobs</div>
-            <div className="mt-2 text-base font-semibold text-ink-950">{user.jobCount}</div>
+            <div className="mt-2 flex h-10 items-center border border-line bg-white px-3 text-base font-semibold text-ink-950">{user.jobCount}</div>
           </div>
         </DetailSection>
 
-        <DetailSection title="Contact" columns="paired">
+        <DetailSection title="Identity mappings">
+          <label>
+            <div className="ui-detail-label">Primary identity</div>
+            <input className="ui-input mt-2 font-mono" value={user.primaryIdentity} readOnly tabIndex={-1} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Secondary identity</div>
+            <input className="ui-input mt-2 font-mono" value={user.secondaryIdentity} readOnly tabIndex={-1} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Card number</div>
+            <input className="ui-input mt-2 font-mono" value={user.cardId} readOnly tabIndex={-1} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Groups</div>
+            <textarea className="ui-textarea mt-2 min-h-20 font-mono" value={user.groups.join('\n')} readOnly tabIndex={-1} />
+          </label>
+          <label className="xl:col-span-2">
+            <div className="ui-detail-label">Notes</div>
+            <textarea className="ui-textarea mt-2" value={user.notes} readOnly tabIndex={-1} />
+          </label>
+        </DetailSection>
+
+        <DetailSection title="Profile">
+          <label>
+            <div className="ui-detail-label">Username</div>
+            <input className="ui-input mt-2 font-mono" value={user.username} readOnly tabIndex={-1} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Full name</div>
+            <input className="ui-input mt-2" value={user.displayName} readOnly tabIndex={-1} />
+          </label>
           <label>
             <div className="ui-detail-label">Email</div>
             <input className="ui-input mt-2" value={user.email} readOnly tabIndex={-1} />

@@ -119,64 +119,61 @@ function OverviewMetric({
         : 'bg-accent-100 text-accent-700'
 
   return (
-    <div className={`px-5 py-4 ${classes}`}>
+    <div className={`px-4 py-3 ${classes}`}>
       <div className="text-sm font-semibold">{label}</div>
-      <div className="mt-3 text-4xl font-semibold tracking-[-0.04em]">{value}</div>
+      <div className="mt-1 text-2xl font-semibold tracking-[-0.03em]">{value}</div>
     </div>
   )
 }
 
 function AdvancedFilters() {
   return (
-    <section className="ui-panel mb-5 overflow-hidden">
-      <div className="border-b border-line px-5 py-4">
-        <div className="flex items-center gap-3 text-xl font-semibold text-ink-950">
-          <SlidersHorizontal className="size-5 text-slate-500" />
-          Filters
-        </div>
+    <section className="ui-panel-muted mb-3 flex flex-col gap-2 px-3 py-3 xl:flex-row xl:items-center">
+      <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink-950">
+        <SlidersHorizontal className="size-4 text-slate-500" />
+        Filters
       </div>
-      <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-5">
-        <label>
-          <div className="text-sm font-semibold text-slate-700">Date range</div>
-          <select className="ui-select mt-2 w-full" defaultValue="Last 7 days">
+
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <label className="min-w-[9rem] flex-1 sm:flex-none">
+          <span className="sr-only">Date range</span>
+          <select className="ui-select h-9 w-full min-w-[9rem]" aria-label="Date range" defaultValue="Last 7 days">
             <option>Last 24 hours</option>
             <option>Last 7 days</option>
             <option>Last 30 days</option>
           </select>
         </label>
-        <label>
-          <div className="text-sm font-semibold text-slate-700">Department</div>
-          <select className="ui-select mt-2 w-full" defaultValue="All departments">
+        <label className="min-w-[10rem] flex-1 sm:flex-none">
+          <span className="sr-only">Department</span>
+          <select className="ui-select h-9 w-full min-w-[10rem]" aria-label="Department" defaultValue="All departments">
             <option>All departments</option>
             <option>Engineering</option>
             <option>Marketing</option>
             <option>Finance</option>
           </select>
         </label>
-        <label>
-          <div className="text-sm font-semibold text-slate-700">Device</div>
-          <select className="ui-select mt-2 w-full" defaultValue="All devices">
+        <label className="min-w-[9rem] flex-1 sm:flex-none">
+          <span className="sr-only">Device</span>
+          <select className="ui-select h-9 w-full min-w-[9rem]" aria-label="Device" defaultValue="All devices">
             <option>All devices</option>
             <option>Floor 1 Printer</option>
             <option>Floor 2 Printer</option>
             <option>Basement Printer</option>
           </select>
         </label>
-        <label>
-          <div className="text-sm font-semibold text-slate-700">User</div>
-          <select className="ui-select mt-2 w-full" defaultValue="All users">
+        <label className="min-w-[8.5rem] flex-1 sm:flex-none">
+          <span className="sr-only">User</span>
+          <select className="ui-select h-9 w-full min-w-[8.5rem]" aria-label="User" defaultValue="All users">
             <option>All users</option>
             <option>John Doe</option>
             <option>Jane Smith</option>
             <option>Alice Brown</option>
           </select>
         </label>
-        <div className="flex items-end">
-          <button className="ui-button-secondary w-full justify-center">
-            <RotateCcw className="size-4" />
-            Reset filters
-          </button>
-        </div>
+        <button type="button" className="ui-button-secondary h-9 px-3 py-0">
+          <RotateCcw className="size-3.5" />
+          Reset
+        </button>
       </div>
     </section>
   )
@@ -393,18 +390,17 @@ export function LogsPage() {
       <AdvancedFilters />
 
       <section className="ui-panel overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-line px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 border-b border-line px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-2xl font-semibold tracking-tight text-ink-950">Print and release activity</div>
-            <div className="mt-2 text-sm text-slate-500">Recent print outcomes with held-job visibility for operations review.</div>
+            <div className="text-base font-semibold text-ink-950">Print and release activity</div>
           </div>
-          <button className="ui-button">
+          <button className="ui-button h-9 px-3 py-0">
             <Download className="size-4" />
             Export CSV
           </button>
         </div>
 
-        <div className="grid gap-4 border-b border-line px-5 py-5 md:grid-cols-3">
+        <div className="grid gap-3 border-b border-line px-4 py-3 md:grid-cols-3">
           <OverviewMetric label="Total jobs" value="5" tone="blue" />
           <OverviewMetric label="Held for release" value="1" tone="violet" />
           <OverviewMetric label="Device/auth events" value="5" tone="green" />

@@ -1,5 +1,5 @@
 import type { AuthUser } from '@/types/auth'
-import { setToken, clearToken } from '@/lib/api'
+import { clearAuthToken, setAuthToken } from './api'
 
 const AUTH_STORAGE_KEY = 'auth_user'
 
@@ -15,7 +15,9 @@ const AUTH_STORAGE_KEY = 'auth_user'
  */
 export function login(user: AuthUser, token?: string): void {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user))
-  if (token) setToken(token)
+  if (token) {
+    setAuthToken(token)
+  }
 }
 
 /**
@@ -23,7 +25,7 @@ export function login(user: AuthUser, token?: string): void {
  */
 export function logout(): void {
   localStorage.removeItem(AUTH_STORAGE_KEY)
-  clearToken()
+  clearAuthToken()
 }
 
 /**

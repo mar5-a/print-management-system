@@ -62,15 +62,20 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
         ) : null}
 
         {!currentAlert.acknowledged && currentAlert.severity === 'critical' && (
-          <div className="px-5 pt-5">
-            <DetailAlert
-              title="Unacknowledged critical alert"
-              description="This alert requires technician review."
-            />
-          </div>
+          <DetailAlert
+            className="mb-0"
+            title="Unacknowledged critical alert"
+            description="Review the affected device or queue impact before acknowledging this alert."
+          />
         )}
 
-        <DetailSection title="Details" columns="single">
+        <DetailSection title="Alert state">
+          <div>
+            <div className="ui-detail-label">Status</div>
+            <div className="mt-2 flex h-10 items-center border border-line bg-white px-3 text-sm font-medium text-ink-950">
+              {currentAlert.acknowledged ? 'Acknowledged' : 'Active'}
+            </div>
+          </div>
           <div>
             <div className="ui-detail-label">Severity</div>
             <div className="mt-2 flex items-center gap-2">
@@ -89,12 +94,15 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
             </div>
           )}
           <div>
-            <div className="ui-detail-label">Description</div>
-            <div className="mt-2 text-sm leading-6 text-slate-700">{currentAlert.description}</div>
-          </div>
-          <div>
             <div className="ui-detail-label">Created</div>
             <div className="mt-2 text-sm text-ink-950">{currentAlert.createdAt}</div>
+          </div>
+        </DetailSection>
+
+        <DetailSection title="Impact" columns="single">
+          <div>
+            <div className="ui-detail-label">Description</div>
+            <div className="mt-2 text-sm leading-6 text-slate-700">{currentAlert.description}</div>
           </div>
         </DetailSection>
 

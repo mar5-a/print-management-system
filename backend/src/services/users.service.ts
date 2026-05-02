@@ -1,188 +1,256 @@
-import { query } from '../db/client.js'
-import { NotFoundError, ConflictError } from '../lib/errors.js'
-import type { PaginatedResult } from '../types/index.js'
+import { query, transaction } from '../db/pool.js'
+import { ConflictError, ForbiddenError, NotFoundError } from '../lib/errors.js'
+import { hashPassword } from '../lib/jwt.js'
+import { toPublicUser } from './user-shape.js'
+import type { PaginatedResult, UserRole } from '../types/api.js'
 
-export async function listUsers(filters: {
+interface ListUsersFilters {
   search?: string
   status?: 'active' | 'suspended'
   role?: string
   page?: number
   limit?: number
-}): Promise<PaginatedResult<object>> {
-  const page = Math.max(1, filters.page ?? 1)
-  const limit = Math.min(100, Math.max(1, filters.limit ?? 20))
-  const offset = (page - 1) * limit
+}
 
-  const conditions: string[] = ['u.deleted_at IS NULL']
+interface CreateUserInput {
+  username: string
+  email: string
+  displayName: string
+  universityId?: string
+  password: string
+  role: UserRole
+  departmentId?: number
+  allocatedPages?: number
+}
+
+interface UpdateUserInput {
+  email?: string
+  displayName?: string
+  role?: UserRole
+  departmentId?: number | null
+  allocatedPages?: number
+}
+
+export async function listUsers(filters: ListUsersFilters): Promise<PaginatedResult<ReturnType<typeof toPublicUser>>> {
+  const page = Math.max(1, filters.page ?? 1)
+  const limit = Math.min(100, filters.limit ?? 20)
+  const offset = (page - 1) * limit
   const params: unknown[] = []
+  const conditions = ['TRUE']
 
   if (filters.search) {
     params.push(`%${filters.search}%`)
     conditions.push(`(u.username ILIKE $${params.length} OR u.email ILIKE $${params.length} OR u.display_name ILIKE $${params.length})`)
   }
-  if (filters.status === 'active') conditions.push('u.is_suspended = false AND u.is_active = true')
-  if (filters.status === 'suspended') conditions.push('u.is_suspended = true')
+
+  if (filters.status === 'active') {
+    conditions.push('u.is_suspended = FALSE AND u.is_active = TRUE')
+  } else if (filters.status === 'suspended') {
+    conditions.push('u.is_suspended = TRUE')
+  }
+
   if (filters.role) {
     params.push(filters.role)
-    conditions.push(`r.name = $${params.length}`)
+    conditions.push(`EXISTS (
+      SELECT 1
+      FROM user_roles role_filter_ur
+      JOIN roles role_filter_r ON role_filter_r.id = role_filter_ur.role_id
+      WHERE role_filter_ur.user_id = u.id AND role_filter_r.name = $${params.length}
+    )`)
   }
 
   const where = conditions.join(' AND ')
-
-  const countResult = await query(
-    `SELECT COUNT(*) FROM users u
-     JOIN user_roles ur ON ur.user_id = u.id
-     JOIN roles r ON r.id = ur.role_id
-     WHERE ${where}`,
-    params
+  const count = await query<{ count: string }>(
+    `SELECT COUNT(DISTINCT u.id)::text AS count FROM users u WHERE ${where}`,
+    params,
   )
-  const total = parseInt(countResult.rows[0].count, 10)
 
   params.push(limit, offset)
-  const dataResult = await query(
-    `SELECT u.id, u.username, u.email, u.display_name, u.is_active, u.is_suspended,
-            r.name AS role, d.name AS department_name,
-            uq.allocated_pages, uq.used_pages,
-            u.created_at, u.updated_at
-     FROM users u
-     JOIN user_roles ur ON ur.user_id = u.id
-     JOIN roles r ON r.id = ur.role_id
-     LEFT JOIN departments d ON d.id = u.department_id
-     LEFT JOIN user_quotas uq ON uq.user_id = u.id
-     WHERE ${where}
-     ORDER BY u.created_at DESC
-     LIMIT $${params.length - 1} OFFSET $${params.length}`,
-    params
-  )
-
-  return { data: dataResult.rows, total, page, limit, totalPages: Math.ceil(total / limit) }
-}
-
-export async function getUserById(id: string) {
   const result = await query(
-    `SELECT u.id, u.username, u.email, u.display_name, u.is_active, u.is_suspended,
-            u.ad_object_id, r.name AS role, d.name AS department_name, d.id AS department_id,
-            uq.allocated_pages, uq.used_pages, uq.reserved_pages, uq.quota_period, uq.reset_at,
-            u.created_at, u.updated_at
+    `SELECT
+        u.*,
+        d.name AS department_name,
+        COALESCE(array_agg(DISTINCT r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        uq.used_pages,
+        uq.allocated_pages,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
+        COUNT(DISTINCT pj.id) AS job_count
      FROM users u
-     JOIN user_roles ur ON ur.user_id = u.id
-     JOIN roles r ON r.id = ur.role_id
      LEFT JOIN departments d ON d.id = u.department_id
+     LEFT JOIN user_roles ur ON ur.user_id = u.id
+     LEFT JOIN roles r ON r.id = ur.role_id
      LEFT JOIN user_quotas uq ON uq.user_id = u.id
-     WHERE u.id = $1 AND u.deleted_at IS NULL`,
-    [id]
+     LEFT JOIN print_jobs pj ON pj.user_id = u.id
+     WHERE ${where}
+     GROUP BY u.id, d.name, uq.used_pages, uq.allocated_pages
+     ORDER BY u.display_name
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params,
   )
-  if (!result.rows[0]) throw new NotFoundError('User')
-  return result.rows[0]
+
+  const total = Number(count.rows[0]?.count ?? 0)
+
+  return {
+    data: result.rows.map(toPublicUser),
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  }
 }
 
-export async function createUser(data: {
-  id: string
-  username: string
-  email: string
-  displayName: string
-  role: string
-  departmentId?: string
-  passwordHash: string
-  allocatedPages?: number
-}) {
-  // Check uniqueness
-  const existing = await query(
-    'SELECT id FROM users WHERE (id = $1 OR username = $2 OR email = $3) AND deleted_at IS NULL',
-    [data.id, data.username.toLowerCase(), data.email.toLowerCase()]
+export async function getUserByPublicId(id: string) {
+  const result = await query(
+    `SELECT
+        u.*,
+        d.name AS department_name,
+        COALESCE(array_agg(DISTINCT r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+        uq.used_pages,
+        uq.allocated_pages,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS active_jobs,
+        COUNT(DISTINCT pj.id) AS job_count
+     FROM users u
+     LEFT JOIN departments d ON d.id = u.department_id
+     LEFT JOIN user_roles ur ON ur.user_id = u.id
+     LEFT JOIN roles r ON r.id = ur.role_id
+     LEFT JOIN user_quotas uq ON uq.user_id = u.id
+     LEFT JOIN print_jobs pj ON pj.user_id = u.id
+     WHERE u.user_uuid::text = $1 OR u.id::text = $1
+     GROUP BY u.id, d.name, uq.used_pages, uq.allocated_pages`,
+    [id],
   )
-  if (existing.rows.length) {
-    const clash = existing.rows[0]
-    if (clash.id === data.id) throw new ConflictError('User ID already in use')
-    throw new ConflictError('Username or email already in use')
+
+  if (!result.rows[0]) {
+    throw new NotFoundError('User')
   }
 
-  const roleResult = await query('SELECT id FROM roles WHERE name = $1', [data.role])
-  if (!roleResult.rows[0]) throw new NotFoundError('Role')
-
-  const userResult = await query(
-    `INSERT INTO users (id, username, email, display_name, department_id)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [data.id, data.username.toLowerCase(), data.email.toLowerCase(), data.displayName, data.departmentId ?? null]
-  )
-  const userId = userResult.rows[0].id
-
-  await query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [userId, roleResult.rows[0].id])
-  await query('INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)', [userId, data.passwordHash])
-  await query(
-    `INSERT INTO user_quotas (user_id, allocated_pages) VALUES ($1, $2)`,
-    [userId, data.allocatedPages ?? 1000]
-  )
-
-  return getUserById(userId)
+  return toPublicUser(result.rows[0])
 }
 
-export async function updateUser(id: string, data: {
-  displayName?: string
-  email?: string
-  departmentId?: string
-  role?: string
-  allocatedPages?: number
-}) {
-  await getUserById(id) // throws if not found
+export async function getUserInternalId(publicId: string) {
+  const result = await query<{ id: number }>(
+    `SELECT id FROM users WHERE user_uuid::text = $1 OR id::text = $1`,
+    [publicId],
+  )
 
-  if (data.displayName || data.email || data.departmentId !== undefined) {
-    const fields: string[] = []
-    const params: unknown[] = []
-
-    if (data.displayName) { params.push(data.displayName); fields.push(`display_name = $${params.length}`) }
-    if (data.email) { params.push(data.email.toLowerCase()); fields.push(`email = $${params.length}`) }
-    if (data.departmentId !== undefined) { params.push(data.departmentId || null); fields.push(`department_id = $${params.length}`) }
-
-    params.push(id)
-    await query(`UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length}`, params)
+  if (!result.rows[0]) {
+    throw new NotFoundError('User')
   }
 
-  if (data.role) {
-    const roleResult = await query('SELECT id FROM roles WHERE name = $1', [data.role])
-    if (roleResult.rows[0]) {
-      await query('DELETE FROM user_roles WHERE user_id = $1', [id])
-      await query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [id, roleResult.rows[0].id])
+  return Number(result.rows[0].id)
+}
+
+export async function createUser(input: CreateUserInput) {
+  const userUuid = await transaction(async (client) => {
+    const existing = await client.query('SELECT id FROM users WHERE username = $1 OR email = $2', [
+      input.username,
+      input.email,
+    ])
+
+    if (existing.rows.length > 0) {
+      throw new ConflictError('Username or email already exists')
+    }
+
+    const user = await client.query<{ id: number; user_uuid: string }>(
+      `INSERT INTO users (username, email, display_name, university_id, department_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, user_uuid`,
+      [input.username, input.email, input.displayName, input.universityId ?? null, input.departmentId ?? null],
+    )
+    const userId = Number(user.rows[0].id)
+
+    await client.query(
+      `INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)`,
+      [userId, hashPassword(input.password)],
+    )
+    await client.query(
+      `INSERT INTO user_roles (user_id, role_id)
+       SELECT $1, id FROM roles WHERE name = $2
+       ON CONFLICT DO NOTHING`,
+      [userId, input.role],
+    )
+    await client.query(
+      `INSERT INTO user_quotas (user_id, quota_period, allocated_pages, used_pages)
+       VALUES ($1, 'semester', $2, 0)`,
+      [userId, input.allocatedPages ?? 500],
+    )
+
+    return String(user.rows[0].user_uuid)
+  })
+
+  return getUserByPublicId(userUuid)
+}
+
+export async function updateUser(publicId: string, input: UpdateUserInput) {
+  const userId = await getUserInternalId(publicId)
+  const fields: string[] = []
+  const params: unknown[] = []
+
+  const fieldMap = {
+    email: input.email,
+    display_name: input.displayName,
+    department_id: input.departmentId,
+  }
+
+  for (const [field, value] of Object.entries(fieldMap)) {
+    if (value !== undefined) {
+      params.push(value)
+      fields.push(`${field} = $${params.length}`)
     }
   }
 
-  if (data.allocatedPages !== undefined) {
+  if (fields.length > 0) {
+    params.push(userId)
+    await query(`UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length}`, params)
+  }
+
+  if (input.role) {
+    await query('DELETE FROM user_roles WHERE user_id = $1', [userId])
     await query(
-      `INSERT INTO user_quotas (user_id, allocated_pages) VALUES ($1, $2)
-       ON CONFLICT (user_id) DO UPDATE SET allocated_pages = $2, updated_at = NOW()`,
-      [id, data.allocatedPages]
+      `INSERT INTO user_roles (user_id, role_id)
+       SELECT $1, id FROM roles WHERE name = $2
+       ON CONFLICT DO NOTHING`,
+      [userId, input.role],
     )
   }
 
-  return getUserById(id)
+  if (input.allocatedPages !== undefined) {
+    await query(
+      `INSERT INTO user_quotas (user_id, quota_period, allocated_pages, used_pages)
+       VALUES ($1, 'semester', $2, 0)
+       ON CONFLICT (user_id, quota_period) DO UPDATE SET
+         allocated_pages = EXCLUDED.allocated_pages,
+         updated_at = NOW()`,
+      [userId, input.allocatedPages],
+    )
+  }
+
+  return getUserByPublicId(publicId)
 }
 
-export async function suspendUser(id: string) {
-  await getUserById(id)
-  await query('UPDATE users SET is_suspended = true, updated_at = NOW() WHERE id = $1', [id])
+export async function suspendUser(publicId: string) {
+  const userId = await getUserInternalId(publicId)
+  await query('UPDATE users SET is_suspended = TRUE, updated_at = NOW() WHERE id = $1', [userId])
 }
 
-export async function reactivateUser(id: string) {
-  await getUserById(id)
-  await query('UPDATE users SET is_suspended = false, is_active = true, updated_at = NOW() WHERE id = $1', [id])
+export async function reactivateUser(publicId: string) {
+  const userId = await getUserInternalId(publicId)
+  await query('UPDATE users SET is_suspended = FALSE, is_active = TRUE, updated_at = NOW() WHERE id = $1', [userId])
 }
 
-export async function deleteUser(id: string) {
-  await getUserById(id)
-  await query('UPDATE users SET deleted_at = NOW(), is_active = false, updated_at = NOW() WHERE id = $1', [id])
+export async function deleteUser(publicId: string) {
+  const userId = await getUserInternalId(publicId)
+  await query('UPDATE users SET is_active = FALSE, is_suspended = TRUE, updated_at = NOW() WHERE id = $1', [userId])
 }
 
-export async function getUserJobs(userId: string, limit = 20, page = 1) {
-  const offset = (page - 1) * limit
-  const result = await query(
-    `SELECT pj.*, pq.name AS queue_name, p.name AS printer_name
-     FROM print_jobs pj
-     JOIN print_queues pq ON pq.id = pj.queue_id
-     LEFT JOIN printers p ON p.id = pj.printer_id
-     WHERE pj.user_id = $1 AND pj.deleted_at IS NULL
-     ORDER BY pj.submitted_at DESC
-     LIMIT $2 OFFSET $3`,
-    [userId, limit, offset]
-  )
-  return result.rows
+export async function assertTechnicianCanManageTarget(actorRoles: UserRole[], targetPublicId: string) {
+  if (!actorRoles.includes('technician') || actorRoles.includes('admin')) {
+    return
+  }
+
+  const target = await getUserByPublicId(targetPublicId)
+
+  if (target.role !== 'standard_user') {
+    throw new ForbiddenError('Technicians can only manage standard user accounts')
+  }
 }

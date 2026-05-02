@@ -1,44 +1,60 @@
-const BASE = '/api'
-const TOKEN_KEY = 'auth_token'
+const backendBaseUrl = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:4000'
+const tokenKey = 'auth_token'
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+export function getAuthToken() {
+  return localStorage.getItem(tokenKey)
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token)
+export function setAuthToken(token: string) {
+  localStorage.setItem(tokenKey, token)
 }
 
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY)
+export function clearAuthToken() {
+  localStorage.removeItem(tokenKey)
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getAuthToken()
+  const headers = new Headers(options.headers)
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
-
-  if (res.status === 204) return undefined as T
-
-  const json = await res.json()
-
-  if (!res.ok) {
-    throw new Error(json?.error?.message ?? `Request failed: ${res.status}`)
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
   }
 
-  return json
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  const response = await fetch(`${backendBaseUrl}/api${path}`, {
+    ...options,
+    headers,
+  })
+
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    const message = payload?.error?.message ?? `Backend request failed with HTTP ${response.status}`
+    throw new Error(message)
+  }
+
+  return payload as T
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  get: <T>(path: string) => apiRequest<T>(path),
+  post: <T>(path: string, body?: unknown) =>
+    apiRequest<T>(path, {
+      method: 'POST',
+      body: body instanceof FormData ? body : JSON.stringify(body ?? {}),
+    }),
   patch: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+    apiRequest<T>(path, {
+      method: 'PATCH',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
+  delete: <T>(path: string) => apiRequest<T>(path, { method: 'DELETE' }),
 }

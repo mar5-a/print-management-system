@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Bell,
   ChevronRight,
@@ -8,7 +8,7 @@ import {
   Printer,
   Wrench,
 } from 'lucide-react'
-import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
+import { NavLink, useNavigate, useOutlet } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { logout } from '@/lib/auth'
 
@@ -20,11 +20,8 @@ const techNavItems = [
 ]
 
 export function TechShell() {
-  const location = useLocation()
   const navigate = useNavigate()
   const outlet = useOutlet()
-  const sectionTitle =
-    techNavItems.find((item) => location.pathname.startsWith(item.href))?.label ?? 'Technician'
 
   const handleLogout = () => {
     const confirmed = window.confirm('Are you sure you want to log out?')
@@ -55,24 +52,24 @@ export function TechShell() {
       </div>
 
       <div className="grid min-h-[calc(100vh-2.25rem)] max-w-[1800px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[248px_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="flex flex-col border-b border-line/70 bg-[#111827] px-4 py-5 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
-          <div className="flex items-start justify-between gap-4 border-b border-line pb-5">
+        <aside className="flex min-h-0 flex-col border-b border-line/70 bg-[#111827] px-4 py-4 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
+          <div className="shrink-0 flex items-start justify-between gap-4 border-b border-slate-700 pb-4">
             <div>
               <div className="ui-kicker text-slate-300">Print Management</div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-white">CCM Tech</div>
-              <p className="mt-2 max-w-[16rem] text-sm text-slate-400">Operations console</p>
+              <div className="mt-1.5 text-xl font-semibold tracking-tight text-white">CCM Tech</div>
+              <p className="mt-1 text-sm text-slate-400">Operations console</p>
             </div>
             <DatabaseZap className="mt-1 size-5 text-accent-500" />
           </div>
 
-          <nav className="mt-6 flex-1 space-y-1.5">
+          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 lg:pb-24">
             {techNavItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
                 className={({ isActive }) =>
                   cn(
-                    'relative flex items-center gap-3 overflow-hidden border px-3 py-3 text-sm font-medium transition',
+                    'relative flex items-center gap-3 overflow-hidden border px-3 py-2.5 text-sm font-medium transition',
                     isActive
                       ? 'border-ink-950 bg-ink-950 text-white'
                       : 'border-transparent text-slate-300 hover:border-line hover:bg-slate-700 hover:text-white',
@@ -96,50 +93,24 @@ export function TechShell() {
             ))}
           </nav>
 
-          <div className="mt-auto border-t border-slate-600 pt-5">
-            <div className="ui-kicker text-slate-300">Operator</div>
-            <div className="mt-2 flex items-center justify-between text-sm">
-              <div>
-                <div className="font-semibold text-white">Sarah Tech</div>
-                <div className="text-slate-400">Operations</div>
+          <div className="mt-3 shrink-0 border-t border-slate-700 bg-[#111827] pt-3 lg:fixed lg:bottom-4 lg:left-4 lg:z-20 lg:mt-0 lg:w-[216px]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 text-sm">
+                <div className="ui-kicker text-slate-300">Operator</div>
+                <div className="mt-1 truncate font-semibold text-white">Sarah Tech</div>
+                <div className="truncate text-slate-400">Operations · Online</div>
               </div>
-              <div className="rounded-full bg-accent-100 px-2.5 py-1 text-[0.7rem] font-semibold text-accent-700">
-                Online
-              </div>
+              <button className="ui-button-secondary h-9 shrink-0 px-3" onClick={handleLogout}>
+                <LogOut className="size-4" />
+                <span>Log Out</span>
+              </button>
             </div>
-            <button className="ui-button-secondary mt-4 w-full" onClick={handleLogout}>
-              <LogOut className="size-4" />
-              Log Out
-            </button>
           </div>
         </aside>
 
         <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
-          <header className="border-b border-line/80 bg-white/80 backdrop-blur">
-            <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <div className="ui-kicker">{sectionTitle}</div>
-                <div className="mt-2 flex items-center gap-3">
-                  <h1 className="text-2xl font-semibold tracking-tight text-ink-950">
-                    Technician Workspace
-                  </h1>
-                </div>
-              </div>
-            </div>
-          </header>
-
           <main className="px-4 py-5 sm:px-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.26, ease: 'easeOut' }}
-              >
-                {outlet}
-              </motion.div>
-            </AnimatePresence>
+            <div>{outlet}</div>
           </main>
         </div>
       </div>

@@ -1,7 +1,6 @@
-import { Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AdvancedFilterPanel } from '@/components/composite/advanced-filter-panel'
 import { FilterBar } from '@/components/composite/filter-bar'
 import { PageHeader } from '@/components/composite/page-header'
 import { DataTable } from '@/components/ui/data-table'
@@ -12,11 +11,11 @@ import { QueueCreatePanel } from './components/queue-create-panel'
 import { useQueueFilters } from './hooks/use-queue-filters'
 import { useQueueForm } from './hooks/use-queue-form'
 import type { AdminQueue } from '@/types/admin'
+import type { QueueAvailabilityScope } from './types'
 
 export function QueuesScreen() {
   const navigate = useNavigate()
-  const [queues, setQueues] = useState<AdminQueue[]>([])
-  useEffect(() => { listQueues().then(setQueues) }, [])
+  const [queues, setQueues] = useState(() => listQueues())
   const { availability, audienceFilter, deleteFilter, filteredQueues, resetFilters, search, setAudienceFilter, setAvailability, setDeleteFilter, setSearch, setStatusFilter, statusFilter } = useQueueFilters(queues)
   const { draft, isCreateOpen, resetDraft, setCreateOpen, setDraft, toggleDraftSelection } = useQueueForm()
 
@@ -59,7 +58,8 @@ export function QueuesScreen() {
       ],
     }
 
-    createQueue(createdQueue).then(() => listQueues().then(setQueues))
+    createQueue(createdQueue)
+    setQueues(listQueues())
     resetDraft()
     setCreateOpen(false)
     navigate(`/admin/queues/${createdQueue.id}`)
@@ -75,30 +75,66 @@ export function QueuesScreen() {
 
       {isCreateOpen ? <QueueCreatePanel draft={draft} onCancel={() => { resetDraft(); setCreateOpen(false) }} onSubmit={handleCreateQueue} setDraft={setDraft} toggleDraftSelection={toggleDraftSelection} /> : null}
 
-      <AdvancedFilterPanel
-        fields={[
-          { id: 'status', label: 'Status', value: statusFilter, options: ['All statuses', 'Online', 'Offline', 'Maintenance'], onChange: setStatusFilter },
-          { id: 'audience', label: 'Audience', value: audienceFilter, options: ['All audiences', 'Students', 'Staff', 'Faculty', 'Mixed'], onChange: setAudienceFilter },
-          { id: 'delete-state', label: 'Delete safety', value: deleteFilter, options: ['All delete states', 'Blocked by active jobs', 'Ready to delete'], onChange: setDeleteFilter },
-        ]}
-        onAction={resetFilters}
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search queues, groups, or servers"
+        actions={
+          <>
+            <button type="button" className="ui-button-action h-9 px-3 py-0" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              New queue
+            </button>
+            <button type="button" className="ui-button-danger-soft h-9 px-3 py-0" onClick={() => setDeleteFilter('Blocked by active jobs')}>
+              <Trash2 className="size-4" />
+              Blocked deletes
+            </button>
+          </>
+        }
+        filters={
+          <>
+            <label className="min-w-[9rem] flex-1 sm:flex-none">
+              <span className="sr-only">Status</span>
+              <select className="ui-select h-9 w-full min-w-[9rem]" aria-label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option>All statuses</option>
+                <option>Online</option>
+                <option>Offline</option>
+                <option>Maintenance</option>
+              </select>
+            </label>
+            <label className="min-w-[9rem] flex-1 sm:flex-none">
+              <span className="sr-only">Audience</span>
+              <select className="ui-select h-9 w-full min-w-[9rem]" aria-label="Audience" value={audienceFilter} onChange={(event) => setAudienceFilter(event.target.value)}>
+                <option>All audiences</option>
+                <option>Students</option>
+                <option>Staff</option>
+                <option>Faculty</option>
+                <option>Mixed</option>
+              </select>
+            </label>
+            <label className="min-w-[11rem] flex-1 sm:flex-none">
+              <span className="sr-only">Delete safety</span>
+              <select className="ui-select h-9 w-full min-w-[11rem]" aria-label="Delete safety" value={deleteFilter} onChange={(event) => setDeleteFilter(event.target.value)}>
+                <option>All delete states</option>
+                <option>Blocked by active jobs</option>
+                <option>Ready to delete</option>
+              </select>
+            </label>
+            <label className="min-w-[9.5rem] flex-1 sm:flex-none">
+              <span className="sr-only">Availability</span>
+              <select className="ui-select h-9 w-full min-w-[9.5rem]" aria-label="Availability" value={availability} onChange={(event) => setAvailability(event.target.value as QueueAvailabilityScope)}>
+                <option>All</option>
+                <option>Enabled only</option>
+                <option>Disabled only</option>
+              </select>
+            </label>
+            <button type="button" className="ui-button-secondary h-9 px-3 py-0" onClick={resetFilters}>
+              <RotateCcw className="size-3.5" />
+              Reset
+            </button>
+          </>
+        }
       />
-
-      <FilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search queues, groups, or servers">
-        <button type="button" className="ui-button-action px-3 py-2" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          New queue
-        </button>
-        <button type="button" className="ui-button-danger-soft px-3 py-2" onClick={() => setDeleteFilter('Blocked by active jobs')}>
-          <Trash2 className="size-4" />
-          Blocked deletes
-        </button>
-        {(['All', 'Enabled only', 'Disabled only'] as const).map((value) => (
-          <button key={value} type="button" className={availability === value ? 'ui-button-secondary border-accent-500 text-accent-700' : 'ui-button-ghost'} onClick={() => setAvailability(value)}>
-            {value}
-          </button>
-        ))}
-      </FilterBar>
 
       <div className="mt-4">
         <DataTable<AdminQueue>

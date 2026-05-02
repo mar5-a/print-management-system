@@ -16,13 +16,10 @@ export function PortalMetric({
   hint?: string
 }) {
   return (
-    <section className="ui-panel overflow-hidden">
-      <div className="h-1 w-full bg-sky-600" />
-      <div className="px-4 py-4">
-        <div className="ui-heading">{label}</div>
-        <div className="mt-3 text-3xl font-semibold tracking-tight text-ink-950">{value}</div>
-        {hint ? <div className="mt-1 text-sm text-slate-500">{hint}</div> : null}
-      </div>
+    <section className="ui-panel px-4 py-3">
+      <div className="ui-heading">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-normal text-ink-950">{value}</div>
+      {hint ? <div className="mt-1 text-sm text-slate-500">{hint}</div> : null}
     </section>
   )
 }
@@ -88,7 +85,7 @@ export function DashboardActiveJob({
   onCancel: (jobId: string) => void
 }) {
   return (
-    <div className="border-b border-line py-4 last:border-b-0">
+    <div className="border-b border-line py-3 last:border-b-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-ink-950">{job.fileName}</div>
@@ -97,11 +94,10 @@ export function DashboardActiveJob({
         </div>
         <PortalJobStatusBadge status={job.status} />
       </div>
-      <div className="mt-2 text-sm text-slate-500">
-        {job.totalPages} pages · {formatUsd(job.cost)}
-      </div>
-      <div className="mt-2 text-sm text-slate-500">
-        {job.retentionDeadline ? `Held until ${job.retentionDeadline}.` : job.details}
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+        <span>{job.totalPages} pages</span>
+        <span>{formatUsd(job.cost)}</span>
+        <span>{job.retentionDeadline ? `Held until ${job.retentionDeadline}` : job.details}</span>
       </div>
       {job.status === 'Pending Release' ? (
         <div className="mt-3">
@@ -116,58 +112,56 @@ export function DashboardActiveJob({
 
 export function RecentPortalJobsTable({ jobs }: { jobs: PortalPrintJob[] }) {
   return (
-    <section className="ui-panel overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b border-line bg-mist-50/80 px-5 py-4">
+    <section>
+      <div className="mb-3 flex items-center justify-between gap-4">
         <div className="text-base font-semibold text-ink-950">Recent jobs</div>
         <Link className="ui-button-secondary px-3 py-1.5" to="/portal/history">
           <FileClock className="size-4" />
           History
         </Link>
       </div>
-      <div className="px-5 py-4">
-        <DataTable<PortalPrintJob>
-          columns={[
-            {
-              key: 'file',
-              header: 'Document',
-              render: (job) => (
-                <div>
-                  <div className="font-semibold text-ink-950">{job.fileName}</div>
-                  <div className="mt-1 text-sm text-slate-500">{job.id}</div>
-                </div>
-              ),
-            },
-            {
-              key: 'submitted',
-              header: 'Submitted',
-              render: (job) => (
-                <div>
-                  <div className="text-sm font-medium text-ink-950">{job.submittedAt}</div>
-                  <div className="mt-1 text-sm text-slate-500">{job.queueName}</div>
-                </div>
-              ),
-            },
-            {
-              key: 'device',
-              header: 'Device',
-              render: (job) => <span className="text-sm text-slate-600">{job.printerName}</span>,
-            },
-            {
-              key: 'total',
-              header: 'Total',
-              render: (job) => <span className="text-sm text-slate-600">{job.totalPages} pages · {formatUsd(job.cost)}</span>,
-            },
-            {
-              key: 'status',
-              header: 'Status',
-              render: (job) => <PortalJobStatusBadge status={job.status} />,
-            },
-          ]}
-          rows={jobs.slice(0, 5)}
-          getRowKey={(job) => job.id}
-          emptyLabel="You have no print jobs yet."
-        />
-      </div>
+      <DataTable<PortalPrintJob>
+        columns={[
+          {
+            key: 'file',
+            header: 'Document',
+            render: (job) => (
+              <div>
+                <div className="ui-table-primary-strong">{job.fileName}</div>
+                <div className="ui-table-meta mt-1">{job.id}</div>
+              </div>
+            ),
+          },
+          {
+            key: 'submitted',
+            header: 'Submitted',
+            render: (job) => (
+              <div>
+                <div className="ui-table-secondary">{job.submittedAt}</div>
+                <div className="ui-table-meta mt-1">{job.queueName}</div>
+              </div>
+            ),
+          },
+          {
+            key: 'device',
+            header: 'Device',
+            render: (job) => <span className="ui-table-secondary">{job.printerName}</span>,
+          },
+          {
+            key: 'total',
+            header: 'Total',
+            render: (job) => <span className="ui-table-secondary">{job.totalPages} pages · {formatUsd(job.cost)}</span>,
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (job) => <PortalJobStatusBadge status={job.status} />,
+          },
+        ]}
+        rows={jobs.slice(0, 5)}
+        getRowKey={(job) => job.id}
+        emptyLabel="You have no print jobs yet."
+      />
     </section>
   )
 }

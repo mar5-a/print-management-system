@@ -28,7 +28,7 @@ interface DetailActionBarProps {
 }
 
 export function DetailPanel({ children, className }: DetailPanelProps) {
-  return <div className={cn('space-y-4', className)}>{children}</div>
+  return <div className={cn('space-y-3', className)}>{children}</div>
 }
 
 export function DetailSection({
@@ -39,10 +39,10 @@ export function DetailSection({
   hint,
 }: DetailSectionProps) {
   return (
-    <section className={cn('ui-panel px-5 py-5', className)}>
+    <section className={cn('ui-panel px-4 py-4', className)}>
       <div className="ui-detail-title">{title}</div>
       {hint ? <p className="ui-detail-hint mt-1">{hint}</p> : null}
-      <div className={cn('mt-4 grid gap-4', columns === 'paired' ? 'xl:grid-cols-2' : '')}>
+      <div className={cn('mt-3 grid gap-3', columns === 'paired' ? 'xl:grid-cols-2' : '')}>
         {children}
       </div>
     </section>
@@ -71,10 +71,10 @@ export function DetailAlert({
         : 'text-danger-500'
 
   return (
-    <section className={cn('mb-5 border px-5 py-4', toneClasses, className)}>
+    <section className={cn('mb-4 border px-4 py-3', toneClasses, className)}>
       <div className={cn('text-sm font-semibold', titleClasses)}>{title}</div>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{description}</p>
-      {actions ? <div className="mt-4 flex flex-wrap gap-2">{actions}</div> : null}
+      <p className="mt-1.5 max-w-3xl text-sm leading-5 text-slate-700">{description}</p>
+      {actions ? <div className="mt-3 flex flex-wrap gap-2">{actions}</div> : null}
     </section>
   )
 }

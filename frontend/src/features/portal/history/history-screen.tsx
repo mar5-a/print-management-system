@@ -1,6 +1,8 @@
-import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { RotateCcw } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { FilterBar } from '@/components/composite/filter-bar'
+import { PageHeader } from '@/components/composite/page-header'
+import { DataTable } from '@/components/ui/data-table'
 import { formatUsd } from '@/lib/formatters'
 import { PortalJobStatusBadge } from '@/features/portal/shared/components'
 import { cancelHistoryJob, listHistoryJobs } from './api'
@@ -15,96 +17,143 @@ function getHistoryMessage(job: PortalPrintJob) {
 }
 
 export function PortalHistoryScreen() {
-  const [jobs, setJobs] = useState(() => listHistoryJobs())
+  const [jobs, setJobs] = useState<PortalPrintJob[]>([])
+  const [error, setError] = useState<string | null>(null)
   const { filteredJobs, search, setSearch, sortBy, setSortBy, statusFilter, setStatusFilter } =
     usePortalHistoryFilters(jobs)
 
-  function handleCancel(jobId: string) {
-    if (cancelHistoryJob(jobId)) {
-      setJobs(listHistoryJobs())
+  useEffect(() => {
+    refreshJobs()
+  }, [])
+
+  async function refreshJobs() {
+    try {
+      setJobs(await listHistoryJobs())
+      setError(null)
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to load print history.')
+    }
+  }
+
+  async function handleCancel(jobId: string) {
+    try {
+      await cancelHistoryJob(jobId)
+      await refreshJobs()
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to cancel job.')
     }
   }
 
   return (
     <div className="min-w-0">
-      <section className="ui-panel mb-5 overflow-hidden">
-        <div className="border-b border-line bg-mist-50/80 px-5 py-4">
-          <div className="text-base font-semibold text-ink-950">Your print history</div>
-          <div className="mt-1 text-sm text-slate-500">Only your own records are shown, including supplementary web uploads and jobs routed from your assigned campus queue.</div>
-        </div>
-        <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-4">
-          <label>
-            <div className="ui-heading">Status</div>
-            <select className="ui-select mt-2 w-full" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'All' | PortalJobStatus)}>
-              <option>All</option>
-              <option>Pending Release</option>
-              <option>In Progress</option>
-              <option>Completed</option>
-              <option>Failed</option>
-              <option>Cancelled</option>
-            </select>
-          </label>
-          <label>
-            <div className="ui-heading">Sort by</div>
-            <select className="ui-select mt-2 w-full" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'Newest' | 'Oldest' | 'Highest cost')}>
-              <option>Newest</option>
-              <option>Oldest</option>
-              <option>Highest cost</option>
-            </select>
-          </label>
-          <div className="md:col-span-2">
-            <div className="ui-heading">Search</div>
-            <label className="relative mt-2 block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              <input className="ui-input pl-10" placeholder="Search file name, job ID, queue, or device" value={search} onChange={(event) => setSearch(event.target.value)} />
+      <PageHeader
+        eyebrow="Portal"
+        title="History"
+        description="Your print records, web uploads, and assigned campus queue activity."
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search file name, job ID, queue, or device"
+        actions={<div className="text-sm text-slate-500">{filteredJobs.length} jobs found</div>}
+        filters={
+          <>
+            <label className="min-w-[11rem] flex-1 sm:flex-none">
+              <span className="sr-only">Status</span>
+              <select className="ui-select h-9 w-full min-w-[11rem]" aria-label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'All' | PortalJobStatus)}>
+                <option>All</option>
+                <option>Pending Release</option>
+                <option>In Progress</option>
+                <option>Completed</option>
+                <option>Failed</option>
+                <option>Cancelled</option>
+              </select>
             </label>
-          </div>
+            <label className="min-w-[10rem] flex-1 sm:flex-none">
+              <span className="sr-only">Sort by</span>
+              <select className="ui-select h-9 w-full min-w-[10rem]" aria-label="Sort by" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'Newest' | 'Oldest' | 'Highest cost')}>
+                <option>Newest</option>
+                <option>Oldest</option>
+                <option>Highest cost</option>
+              </select>
+            </label>
+            <button type="button" className="ui-button-secondary h-9 px-3 py-0" onClick={() => { setSearch(''); setSortBy('Newest'); setStatusFilter('All') }}>
+              <RotateCcw className="size-3.5" />
+              Reset
+            </button>
+          </>
+        }
+      />
+
+      {error ? (
+        <div className="mt-4 border border-danger-500/30 bg-danger-100 px-4 py-3 text-sm text-danger-500">
+          {error}
         </div>
-      </section>
+      ) : null}
 
-      <FilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search your jobs">
-        <div className="text-sm text-slate-500">{filteredJobs.length} jobs found</div>
-      </FilterBar>
-
-      <div className="mt-4 space-y-4">
-        {filteredJobs.length === 0 ? (
-          <section className="ui-panel px-5 py-10 text-center text-sm text-slate-500">No print jobs match the current period or filter.</section>
-        ) : (
-          filteredJobs.map((job) => (
-            <section key={job.id} className="ui-panel overflow-hidden">
-              <div className="flex flex-col gap-4 border-b border-line bg-mist-50/70 px-5 py-4 md:flex-row md:items-start md:justify-between">
+      <div className="mt-4">
+        <DataTable<PortalPrintJob>
+          columns={[
+            {
+              key: 'document',
+              header: 'Document',
+              render: (job) => (
                 <div>
-                  <div className="text-base font-semibold text-ink-950">{job.fileName}</div>
-                  <div className="mt-1 text-sm text-slate-500">{job.submittedAt} · {job.queueName}</div>
-                  <div className="mt-1 font-mono text-xs text-slate-500">{job.id}</div>
+                  <div className="ui-table-primary-strong">{job.fileName}</div>
+                  <div className="ui-table-meta mt-1">{job.id}</div>
                 </div>
-                <PortalJobStatusBadge status={job.status} />
-              </div>
-              <div className="grid gap-4 px-5 py-5 md:grid-cols-3">
+              ),
+            },
+            {
+              key: 'submitted',
+              header: 'Submitted',
+              render: (job) => (
                 <div>
-                  <div className="ui-heading">Device</div>
-                  <div className="mt-2 text-sm font-medium text-ink-950">{job.printerName}</div>
+                  <div className="ui-table-secondary">{job.submittedAt}</div>
+                  <div className="ui-table-meta mt-1">{job.queueName}</div>
                 </div>
+              ),
+            },
+            {
+              key: 'device',
+              header: 'Device',
+              render: (job) => <span className="ui-table-secondary">{job.printerName}</span>,
+            },
+            {
+              key: 'output',
+              header: 'Output',
+              render: (job) => (
                 <div>
-                  <div className="ui-heading">Total pages</div>
-                  <div className="mt-2 text-sm font-medium text-ink-950">{job.totalPages}</div>
-                  <div className="mt-1 text-sm text-slate-500">{job.pages} pages × {job.copies} copies</div>
+                  <div className="ui-table-secondary">{job.totalPages} pages · {formatUsd(job.cost)}</div>
+                  <div className="ui-table-meta mt-1">{job.colorMode} · {job.duplex ? 'Duplex' : 'Single-sided'} · {job.paperType}</div>
                 </div>
-                <div>
-                  <div className="ui-heading">Cost</div>
-                  <div className="mt-2 text-sm font-medium text-ink-950">{formatUsd(job.cost)}</div>
+              ),
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (job) => <PortalJobStatusBadge status={job.status} />,
+            },
+            {
+              key: 'message',
+              header: 'Details',
+              render: (job) => (
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm text-slate-600">{getHistoryMessage(job)}</div>
+                  {job.status === 'Pending Release' ? (
+                    <button type="button" className="ui-button-secondary h-8 min-h-8 w-fit px-3 py-0" onClick={() => handleCancel(job.id)}>
+                      Cancel pending job
+                    </button>
+                  ) : null}
                 </div>
-                <div className="md:col-span-3">
-                  <div className="text-sm text-slate-500">{job.colorMode} · {job.duplex ? 'Duplex' : 'Single-sided'} · {job.paperType}</div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 border-t border-line px-5 py-4 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-slate-500">{getHistoryMessage(job)}</div>
-                {job.status === 'Pending Release' ? <button type="button" className="ui-button-secondary px-3 py-1.5" onClick={() => handleCancel(job.id)}>Cancel pending job</button> : null}
-              </div>
-            </section>
-          ))
-        )}
+              ),
+            },
+          ]}
+          rows={filteredJobs}
+          getRowKey={(job) => job.id}
+          emptyLabel="No print jobs match the current filters."
+        />
       </div>
     </div>
   )

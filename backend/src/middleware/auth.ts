@@ -1,7 +1,7 @@
-import type { Request, Response, NextFunction } from 'express'
-import { verifyJwt } from '../lib/jwt.js'
+import type { NextFunction, Request, Response } from 'express'
 import { UnauthorizedError, ForbiddenError } from '../lib/errors.js'
-import type { AuthenticatedUser } from '../types/index.js'
+import { verifyJwt } from '../lib/jwt.js'
+import type { AuthenticatedUser, UserRole } from '../types/api.js'
 
 declare global {
   namespace Express {
@@ -12,19 +12,38 @@ declare global {
 }
 
 export function authenticate(req: Request, _res: Response, next: NextFunction) {
-  const auth = req.headers.authorization
-  if (!auth?.startsWith('Bearer ')) throw new UnauthorizedError('Missing auth token')
+  try {
+    const header = req.headers.authorization
 
-  const token = auth.slice(7)
-  const payload = verifyJwt(token)
-  req.user = { id: payload.sub, role: payload.role }
-  next()
+    if (!header?.startsWith('Bearer ')) {
+      throw new UnauthorizedError('Missing auth token')
+    }
+
+    const payload = verifyJwt(header.slice('Bearer '.length))
+    req.user = {
+      id: Number(payload.sub),
+      role: payload.role,
+      roles: payload.roles,
+    }
+
+    next()
+  } catch {
+    next(new UnauthorizedError('Invalid auth token'))
+  }
 }
 
-export function requireRole(...roles: AuthenticatedUser['role'][]) {
+export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
-    if (!req.user) throw new UnauthorizedError()
-    if (!roles.includes(req.user.role)) throw new ForbiddenError('Insufficient permissions')
+    if (!req.user) {
+      next(new UnauthorizedError())
+      return
+    }
+
+    if (!req.user.roles.some((role) => allowedRoles.includes(role))) {
+      next(new ForbiddenError('Insufficient permissions'))
+      return
+    }
+
     next()
   }
 }

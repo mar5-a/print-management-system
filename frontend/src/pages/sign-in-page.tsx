@@ -3,13 +3,52 @@ import { Printer, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { api } from '@/lib/api'
 import { login } from '@/lib/auth'
-import type { UserRole } from '@/types/auth'
+import { api } from '@/lib/api'
+import type { AuthUser, UserRole } from '@/types/auth'
 
 interface SignInFormData {
   email: string
   password: string
+}
+
+interface BackendAuthUser {
+  id: string
+  username: string
+  email: string
+  display_name: string
+  department_name: string | null
+  role: 'admin' | 'technician' | 'standard_user'
+  is_suspended: boolean
+  quota_used: number
+  quota_total: number
+}
+
+interface LoginResponse {
+  data: {
+    token: string
+    user: BackendAuthUser
+  }
+}
+
+function mapRole(role: BackendAuthUser['role']): UserRole {
+  if (role === 'admin') return 'Administrator'
+  if (role === 'technician') return 'Technician'
+  return 'Student'
+}
+
+function mapAuthUser(user: BackendAuthUser): AuthUser {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: mapRole(user.role),
+    status: user.is_suspended ? 'Suspended' : 'Active',
+    displayName: user.display_name,
+    department: user.department_name ?? 'General Access',
+    quotaUsed: user.quota_used,
+    quotaTotal: user.quota_total,
+  }
 }
 
 export function SignInPage() {
@@ -46,38 +85,33 @@ export function SignInPage() {
     setIsLoading(true)
 
     try {
-      // Map backend role enum to frontend display role
-      const roleMap: Record<string, UserRole> = {
-        admin: 'Administrator',
-        technician: 'Technician',
-        standard_user: 'Student',
-      }
+      const result = await api.post<LoginResponse>('/auth/login', {
+        credential: formData.email,
+        password: formData.password,
+      })
+      const authUser = mapAuthUser(result.data.user)
 
-      const res = await api.post<{ data: { token: string; user: { id: string; username: string; email: string; role: string } } }>(
-        '/auth/login',
-        { credential: formData.email, password: formData.password }
-      )
+      login(authUser, result.data.token)
 
-      const { token, user } = res.data
-      const mappedRole = roleMap[user.role] ?? 'Student'
-
-      login({ id: user.id, username: user.username, email: user.email, role: mappedRole, status: 'Active' }, token)
-
-      switch (mappedRole) {
+      switch (authUser.role) {
         case 'Administrator':
           navigate('/admin/dashboard')
           break
         case 'Technician':
           navigate('/tech/dashboard')
           break
-        default:
+        case 'Student':
+        case 'Faculty':
           navigate('/portal/dashboard')
+          break
+        default:
+          setError('Unable to determine user role')
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to sign in')
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   return (
@@ -167,8 +201,6 @@ export function SignInPage() {
                 <li>admin@university.edu - Administrator</li>
                 <li>tech@university.edu - Technician</li>
                 <li>student@university.edu - Student</li>
-                <li>faculty@university.edu - Faculty</li>
-                <li>suspended@university.edu - Suspended (blocked)</li>
               </ul>
             </div>
           </div>

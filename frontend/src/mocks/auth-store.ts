@@ -50,6 +50,16 @@ const mockUsers: AuthUserRecord[] = [
   },
 ]
 
+function toAuthUser(user: AuthUserRecord): AuthUser {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+  }
+}
+
 /**
  * Validate user credentials against mock database
  * Replace with API call to your SSO/authentication service
@@ -93,11 +103,9 @@ export function validateUserCredentials(
     }
   }
 
-  // Remove password from returned user object and return a clean AuthUser
-  const { password: _, ...safeUser } = user
   return {
     ok: true,
-    user: safeUser,
+    user: toAuthUser(user),
   }
 }
 
@@ -105,5 +113,5 @@ export function validateUserCredentials(
  * Get all mock users (for testing/debugging only)
  */
 export function getMockUsers(): AuthUser[] {
-  return mockUsers.map(({ password: _, ...safeUser }) => safeUser)
+  return mockUsers.map(toAuthUser)
 }

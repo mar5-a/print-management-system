@@ -97,6 +97,13 @@ export function DashboardPage() {
   const pagesToday = trendValues[trendValues.length - 1]
   const holdReleaseJobs = adminPrinters.reduce((total, printer) => total + printer.pendingJobs, 0)
 
+  function resetDashboardFilters() {
+    setDateRange('Last 7 days')
+    setDepartment('All departments')
+    setDevice('All devices')
+    setUserFilter('All users')
+  }
+
   return (
     <div className="min-w-0">
       <PageHeader eyebrow="Dashboard" title="Dashboard" />
@@ -133,6 +140,7 @@ export function DashboardPage() {
           },
         ]}
         compact
+        onAction={resetDashboardFilters}
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

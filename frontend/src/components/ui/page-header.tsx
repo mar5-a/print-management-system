@@ -8,15 +8,17 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, description, eyebrow, meta }: PageHeaderProps) {
+  const showEyebrow = Boolean(eyebrow && eyebrow.trim().toLowerCase() !== title.trim().toLowerCase())
+
   return (
     <header className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
-        {eyebrow ? <div className="ui-kicker">{eyebrow}</div> : null}
-        <h2 className="mt-2 text-[clamp(1.7rem,2vw,2.5rem)] font-semibold tracking-tight text-ink-950">
+        {showEyebrow ? <div className="ui-kicker">{eyebrow}</div> : null}
+        <h2 className={`${showEyebrow ? 'mt-1.5 ' : ''}text-[clamp(1.45rem,1.7vw,2rem)] font-semibold tracking-normal text-ink-950`}>
           {title}
         </h2>
         {description ? (
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
+          <p className="mt-1.5 max-w-3xl text-sm leading-5 text-slate-600">{description}</p>
         ) : null}
       </div>
       {meta ? <div className="flex flex-wrap items-center gap-2">{meta}</div> : null}

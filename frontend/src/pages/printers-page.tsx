@@ -66,10 +66,31 @@ function buildPrinterActivity(printer: AdminPrinter) {
 
 export function PrintersPage() {
   const [adminPrinters, setAdminPrinters] = useState<AdminPrinter[]>([])
-  useEffect(() => { listPrinters().then(setAdminPrinters) }, [])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
+
+  useEffect(() => {
+    let cancelled = false
+
+    listPrinters()
+      .then((printers) => {
+        if (!cancelled) {
+          setAdminPrinters(printers)
+          setLoadError(null)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : 'Unable to load printers.')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filteredPrinters = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
@@ -106,6 +127,12 @@ export function PrintersPage() {
           Redirect jobs
         </button>
       </FilterBar>
+
+      {loadError ? (
+        <div className="mt-4 border border-danger-500/30 bg-danger-100 px-4 py-3 text-sm text-danger-500">
+          {loadError}
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <DataTable<AdminPrinter>
@@ -151,16 +178,37 @@ export function PrintersPage() {
 export function PrinterDetailPage() {
   const navigate = useNavigate()
   const { printerId } = useParams()
-  const [printer, setPrinter] = useState<AdminPrinter | undefined>(undefined)
-  const [loadingPrinter, setLoadingPrinter] = useState(true)
-  const [queueOptions, setQueueOptions] = useState<string[]>([])
+  const [printer, setPrinter] = useState<AdminPrinter | undefined>()
+  const [loaded, setLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState('Settings')
+  const queueOptions = listPrinterQueueNames()
+
   useEffect(() => {
-    getPrinterByIdOrUndefined(printerId).then(setPrinter).finally(() => setLoadingPrinter(false))
-    listPrinterQueueNames().then(setQueueOptions)
+    let cancelled = false
+
+    getPrinterByIdOrUndefined(printerId)
+      .then((nextPrinter) => {
+        if (!cancelled) {
+          setPrinter(nextPrinter)
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPrinter(undefined)
+          setLoaded(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [printerId])
 
-  if (loadingPrinter) return null
+  if (!loaded) {
+    return <div className="ui-panel px-4 py-6 text-sm text-slate-500">Loading printer...</div>
+  }
+
   if (!printer) {
     return <Navigate to="/admin/printers" replace />
   }

@@ -1,49 +1,77 @@
 import { api } from '@/lib/api'
+import { listAdminQueues } from '@/mocks/admin-store'
 import type { AdminPrinter } from '@/types/admin'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapPrinter(p: any): AdminPrinter {
-  const statusMap: Record<string, AdminPrinter['status']> = {
-    online: 'Online', offline: 'Offline', maintenance: 'Maintenance', error: 'Offline',
-  }
-  return {
-    id: p.id,
-    name: p.name,
-    softwareVersion: '1.0',
-    hostedOn: 'ccm-printer',
-    model: p.model ?? '—',
-    location: p.location ?? '—',
-    queue: p.queue_name ?? 'Unassigned',
-    deviceGroup: '—',
-    alternateId: '—',
-    status: statusMap[p.status] ?? 'Offline',
-    pendingJobs: 0,
-    releasedToday: 0,
-    toner: p.toner_level ?? 0,
-    holdReleaseMode: 'Secure Release',
-    failureMode: 'Hold until redirected',
-    ipAddress: p.ip_address ?? '—',
-    serialNumber: p.serial_number ?? '—',
-    notes: p.notes ?? '',
-  }
+interface BackendPrinter {
+  id: string
+  name: string
+  model: string | null
+  location: string | null
+  queue_name: string
+  status: string
+  pending_jobs: number
+  released_today: number
+  toner_level: number
+  ip_address: string | null
+  serial_number: string | null
+  notes: string
+  connector_type: string
+  connector_target: string | null
 }
 
-export async function listPrinters(): Promise<AdminPrinter[]> {
-  const res = await api.get<{ data: AdminPrinter[] }>('/printers?limit=100')
-  return res.data.map(mapPrinter)
+interface PaginatedPrinters {
+  data: BackendPrinter[]
 }
 
-export async function getPrinterByIdOrUndefined(printerId?: string): Promise<AdminPrinter | undefined> {
+interface ApiData<T> {
+  data: T
+}
+
+export async function listPrinters() {
+  const response = await api.get<PaginatedPrinters>('/printers?limit=100')
+  return response.data.map(mapPrinter)
+}
+
+export async function getPrinterByIdOrUndefined(printerId?: string) {
   if (!printerId) return undefined
+
   try {
-    const res = await api.get<{ data: AdminPrinter }>(`/printers/${printerId}`)
-    return mapPrinter(res.data)
+    const response = await api.get<ApiData<BackendPrinter>>(`/printers/${printerId}`)
+    return mapPrinter(response.data)
   } catch {
     return undefined
   }
 }
 
-export async function listPrinterQueueNames(): Promise<string[]> {
-  const printers = await listPrinters()
-  return ['Unassigned', ...new Set(printers.map(p => p.queue).filter(q => q !== 'Unassigned'))]
+export function listPrinterQueueNames() {
+  return ['Unassigned', ...new Set(listAdminQueues().map((queue) => queue.name))]
+}
+
+function mapStatus(status: string): AdminPrinter['status'] {
+  if (status === 'online') return 'Online'
+  if (status === 'maintenance') return 'Maintenance'
+  return 'Offline'
+}
+
+function mapPrinter(printer: BackendPrinter): AdminPrinter {
+  return {
+    id: printer.id,
+    name: printer.name,
+    softwareVersion: 'Backend',
+    hostedOn: printer.connector_type === 'windows_queue' ? 'Windows connector' : 'Raw socket connector',
+    model: printer.model ?? 'Unknown model',
+    location: printer.location ?? 'Unassigned',
+    queue: printer.queue_name,
+    deviceGroup: 'Backend managed',
+    alternateId: printer.connector_target ?? printer.id,
+    status: mapStatus(printer.status),
+    pendingJobs: printer.pending_jobs,
+    releasedToday: printer.released_today,
+    toner: printer.toner_level,
+    holdReleaseMode: 'Secure Release',
+    failureMode: 'Hold until redirected',
+    ipAddress: printer.ip_address ?? '',
+    serialNumber: printer.serial_number ?? '—',
+    notes: printer.notes,
+  }
 }

@@ -16,6 +16,10 @@ export interface AuthUser {
   email: string
   role: UserRole
   status: UserStatus
+  displayName?: string
+  department?: string
+  quotaUsed?: number
+  quotaTotal?: number
 }
 
 export type LoginResult = 

@@ -1,24 +1,16 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Ban, Download, Plus, RefreshCw } from 'lucide-react'
+import { Ban, Download, Plus, RefreshCw, RotateCcw } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { DetailActionBar, DetailAlert, DetailPanel, DetailSection } from '../components/ui/admin-detail'
-import { AdvancedFilterPanel } from '../components/ui/advanced-filter-panel'
 import { DataTable } from '../components/ui/data-table'
 import { FilterBar } from '../components/ui/filter-bar'
 import { PageHeader } from '../components/ui/page-header'
-import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
-import { Input } from '../components/ui/input'
-import { getUserByIdOrUndefined, listUsers, setUserStatus, createUser, deleteUser, listDepartments } from '../features/admin/users/api'
-import type { CreateUserPayload } from '../features/admin/users/api'
+import { getUserByIdOrUndefined, listUsers } from '../features/admin/users/api'
 import type { AdminUser } from '../types/admin'
 
 export function UsersPage() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
-  useEffect(() => {
-    listUsers().then(setAdminUsers)
-    listDepartments().then(setDepartments)
-  }, [])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<'All' | 'Active' | 'Suspended'>('All')
@@ -27,62 +19,26 @@ export function UsersPage() {
   const [groupFilter, setGroupFilter] = useState('All groups')
   const deferredSearch = useDeferredValue(search)
 
-  // Selection state
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    let cancelled = false
 
-  // Bulk delete dialog state
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [bulkDeleting, setBulkDeleting] = useState(false)
-  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null)
+    listUsers()
+      .then((users) => {
+        if (!cancelled) {
+          setAdminUsers(users)
+          setLoadError(null)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : 'Unable to load users.')
+        }
+      })
 
-  async function handleBulkDelete() {
-    setBulkDeleteError(null)
-    setBulkDeleting(true)
-    try {
-      await Promise.all([...selectedKeys].map(id => deleteUser(id)))
-      setSelectedKeys(new Set())
-      setBulkDeleteOpen(false)
-      listUsers().then(setAdminUsers)
-    } catch (err) {
-      setBulkDeleteError(err instanceof Error ? err.message : 'Failed to delete users')
-    } finally {
-      setBulkDeleting(false)
+    return () => {
+      cancelled = true
     }
-  }
-
-  // Add user dialog state
-  const [addOpen, setAddOpen] = useState(false)
-  const [addForm, setAddForm] = useState<CreateUserPayload>({
-    id: '', username: '', email: '', displayName: '', password: '',
-    role: 'standard_user', departmentId: undefined, allocatedPages: 1000,
-  })
-  const [addError, setAddError] = useState<string | null>(null)
-  const [addSaving, setAddSaving] = useState(false)
-
-  function handleAddChange(field: keyof CreateUserPayload, value: string | number | undefined) {
-    setAddForm(prev => ({ ...prev, [field]: value }))
-  }
-
-  async function handleAddSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setAddError(null)
-    setAddSaving(true)
-    try {
-      const payload: CreateUserPayload = {
-        ...addForm,
-        allocatedPages: addForm.allocatedPages ? Number(addForm.allocatedPages) : undefined,
-        departmentId: addForm.departmentId || undefined,
-      }
-      await createUser(payload)
-      setAddOpen(false)
-      setAddForm({ id: '', username: '', email: '', displayName: '', password: '', role: 'standard_user', departmentId: undefined, allocatedPages: 1000 })
-      listUsers().then(setAdminUsers)
-    } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Failed to create user')
-    } finally {
-      setAddSaving(false)
-    }
-  }
+  }, [])
 
   const filteredUsers = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
@@ -100,6 +56,14 @@ export function UsersPage() {
     })
   }, [adminUsers, deferredSearch, scope, department, role, groupFilter])
 
+  function resetUserFilters() {
+    setSearch('')
+    setScope('All')
+    setDepartment('All departments')
+    setRole('All roles')
+    setGroupFilter('All groups')
+  }
+
   return (
     <div className="min-w-0">
       <PageHeader
@@ -113,72 +77,86 @@ export function UsersPage() {
         }
       />
 
-      <AdvancedFilterPanel
-        fields={[
-          {
-            id: 'status',
-            label: 'Status',
-            value: scope,
-            options: ['All', 'Active', 'Suspended'],
-            onChange: (value) => setScope(value as 'All' | 'Active' | 'Suspended'),
-          },
-          {
-            id: 'department',
-            label: 'Department',
-            value: department,
-            options: ['All departments', 'Computer Science', 'Data Science', 'Information Systems', 'Mathematics', 'Operations'],
-            onChange: setDepartment,
-          },
-          {
-            id: 'role',
-            label: 'Role',
-            value: role,
-            options: ['All roles', 'Administrator', 'Technician', 'Faculty', 'Student'],
-            onChange: setRole,
-          },
-          {
-            id: 'group',
-            label: 'Group',
-            value: groupFilter,
-            options: ['All groups', 'CCM-Students', 'Faculty', 'Technicians', 'Administrators', 'AI Lab'],
-            onChange: setGroupFilter,
-          },
-        ]}
-      />
-
       <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search by account or name"
-      >
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 xl:flex-nowrap">
-          <button className="ui-button-action px-3 py-2" onClick={() => setAddOpen(true)}>
-            <Plus className="size-4" />
-            Add user
-          </button>
-          <button
-            className="ui-button-danger-soft px-3 py-2"
-            disabled={selectedKeys.size === 0}
-            onClick={() => setBulkDeleteOpen(true)}
-          >
-            <Ban className="size-4" />
-            Delete{selectedKeys.size > 0 ? ` (${selectedKeys.size})` : ''}
-          </button>
-          <button className="ui-button-secondary px-3 py-2">
-            <Download className="size-4" />
-            Export users
-          </button>
-          {(['All', 'Active', 'Suspended'] as const).map((value) => (
-            <button
-              key={value}
-              className={scope === value ? 'ui-button-secondary border-accent-500 text-accent-700' : 'ui-button-ghost'}
-              onClick={() => setScope(value)}
-            >
-              {value}
+        actions={
+          <>
+            <button className="ui-button-action h-9 px-3 py-0">
+              <Plus className="size-4" />
+              Add user
             </button>
-          ))}
+            <button className="ui-button-danger-soft h-9 px-3 py-0">
+              <Ban className="size-4" />
+              Delete
+            </button>
+            <button className="ui-button-secondary h-9 px-3 py-0">
+              <Download className="size-4" />
+              Export users
+            </button>
+          </>
+        }
+        filters={
+          <>
+            <label className="min-w-[8.5rem] flex-1 sm:flex-none">
+              <span className="sr-only">Status</span>
+              <select
+                className="ui-select h-9 w-full min-w-[8.5rem]"
+                aria-label="Status"
+                value={scope}
+                onChange={(event) => setScope(event.target.value as 'All' | 'Active' | 'Suspended')}
+              >
+                <option>All</option>
+                <option>Active</option>
+                <option>Suspended</option>
+              </select>
+            </label>
+            <label className="min-w-[11rem] flex-1 sm:flex-none">
+              <span className="sr-only">Department</span>
+              <select className="ui-select h-9 w-full min-w-[11rem]" aria-label="Department" value={department} onChange={(event) => setDepartment(event.target.value)}>
+                <option>All departments</option>
+                <option>Computer Science</option>
+                <option>Data Science</option>
+                <option>Information Systems</option>
+                <option>Mathematics</option>
+                <option>Operations</option>
+              </select>
+            </label>
+            <label className="min-w-[9rem] flex-1 sm:flex-none">
+              <span className="sr-only">Role</span>
+              <select className="ui-select h-9 w-full min-w-[9rem]" aria-label="Role" value={role} onChange={(event) => setRole(event.target.value)}>
+                <option>All roles</option>
+                <option>Administrator</option>
+                <option>Technician</option>
+                <option>Faculty</option>
+                <option>Student</option>
+              </select>
+            </label>
+            <label className="min-w-[9rem] flex-1 sm:flex-none">
+              <span className="sr-only">Group</span>
+              <select className="ui-select h-9 w-full min-w-[9rem]" aria-label="Group" value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}>
+                <option>All groups</option>
+                <option>CCM-Students</option>
+                <option>Faculty</option>
+                <option>Technicians</option>
+                <option>Administrators</option>
+                <option>AI Lab</option>
+              </select>
+            </label>
+            <button type="button" className="ui-button-secondary h-9 px-3 py-0" onClick={resetUserFilters}>
+              <RotateCcw className="size-3.5" />
+              Reset
+            </button>
+          </>
+        }
+      />
+
+      {loadError ? (
+        <div className="mt-4 border border-danger-500/30 bg-danger-100 px-4 py-3 text-sm text-danger-500">
+          {loadError}
         </div>
-      </FilterBar>
+      ) : null}
 
       <div className="mt-4">
         <DataTable<AdminUser>
@@ -218,140 +196,9 @@ export function UsersPage() {
             rows={filteredUsers}
             getRowKey={(user) => user.id}
             onRowClick={(user) => navigate(`/admin/users/${user.id}`)}
-            selectedKeys={selectedKeys}
-            onSelectionChange={setSelectedKeys}
             emptyLabel="No users match the current search."
         />
       </div>
-
-      {/* Bulk Delete Confirmation Dialog */}
-      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-        <DialogContent className="w-[min(92vw,420px)]">
-          <div className="border-b border-line px-6 py-4">
-            <DialogTitle className="text-base font-semibold text-ink-950">Delete users</DialogTitle>
-          </div>
-          <div className="px-6 py-5 space-y-4">
-            <p className="text-sm text-ink-700">
-              Are you sure you want to delete <strong>{selectedKeys.size} user{selectedKeys.size !== 1 ? 's' : ''}</strong>? This action cannot be undone.
-            </p>
-            {bulkDeleteError && <p className="text-sm text-red-600">{bulkDeleteError}</p>}
-            <div className="flex justify-end gap-2 border-t border-line pt-4">
-              <button className="ui-button-secondary px-4 py-2" onClick={() => setBulkDeleteOpen(false)}>Cancel</button>
-              <button className="ui-button-danger-soft px-4 py-2" onClick={handleBulkDelete} disabled={bulkDeleting}>
-                {bulkDeleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add User Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <div className="border-b border-line px-6 py-4">
-            <DialogTitle className="text-base font-semibold text-ink-950">Add user</DialogTitle>
-          </div>
-          <form onSubmit={handleAddSubmit} className="space-y-4 px-6 py-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1 col-span-2">
-                <label className="text-xs font-medium text-ink-700">User ID</label>
-                <Input
-                  required
-                  placeholder="e.g. s202270440"
-                  value={addForm.id}
-                  onChange={e => handleAddChange('id', e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Display name</label>
-                <Input
-                  required
-                  placeholder="John Smith"
-                  value={addForm.displayName}
-                  onChange={e => handleAddChange('displayName', e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Username</label>
-                <Input
-                  required
-                  placeholder="john.smith"
-                  value={addForm.username}
-                  onChange={e => handleAddChange('username', e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Email</label>
-                <Input
-                  required
-                  type="email"
-                  placeholder="john.smith@ccm.edu.sa"
-                  value={addForm.email}
-                  onChange={e => handleAddChange('email', e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Password</label>
-                <Input
-                  required
-                  type="password"
-                  placeholder="Min. 6 characters"
-                  value={addForm.password}
-                  onChange={e => handleAddChange('password', e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Role</label>
-                <select
-                  className="h-10 w-full border border-line bg-white px-3 text-sm text-ink-950 outline-none focus:border-accent-500"
-                  value={addForm.role}
-                  onChange={e => handleAddChange('role', e.target.value as CreateUserPayload['role'])}
-                >
-                  <option value="standard_user">Student</option>
-                  <option value="technician">Technician</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Department</label>
-                <select
-                  className="h-10 w-full border border-line bg-white px-3 text-sm text-ink-950 outline-none focus:border-accent-500"
-                  value={addForm.departmentId ?? ''}
-                  onChange={e => handleAddChange('departmentId', e.target.value || undefined)}
-                >
-                  <option value="">No department</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink-700">Allocated pages</label>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="1000"
-                  value={addForm.allocatedPages ?? ''}
-                  onChange={e => handleAddChange('allocatedPages', e.target.value ? Number(e.target.value) : undefined)}
-                />
-              </div>
-            </div>
-
-            {addError && (
-              <p className="text-sm text-red-600">{addError}</p>
-            )}
-
-            <div className="flex justify-end gap-2 border-t border-line pt-4">
-              <button type="button" className="ui-button-secondary px-4 py-2" onClick={() => setAddOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className="ui-button-action px-4 py-2" disabled={addSaving}>
-                {addSaving ? 'Creating…' : 'Create user'}
-              </button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
@@ -359,35 +206,37 @@ export function UsersPage() {
 export function UserDetailPage() {
   const navigate = useNavigate()
   const { userId } = useParams()
-  const [user, setUser] = useState<AdminUser | undefined>(undefined)
-  const [loadingUser, setLoadingUser] = useState(true)
-  const [status, setStatus] = useState<'Active' | 'Suspended'>('Active')
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [user, setUser] = useState<AdminUser | undefined>()
+  const [loaded, setLoaded] = useState(false)
+
   useEffect(() => {
-    getUserByIdOrUndefined(userId).then(setUser).finally(() => setLoadingUser(false))
+    let cancelled = false
+
+    getUserByIdOrUndefined(userId)
+      .then((nextUser) => {
+        if (!cancelled) {
+          setUser(nextUser)
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUser(undefined)
+          setLoaded(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [userId])
 
-  useEffect(() => {
-    if (user) setStatus(user.status)
-  }, [user])
-
-  if (loadingUser) return null
-  if (!user) {
-    return <Navigate to="/admin/users" replace />
+  if (!loaded) {
+    return <div className="ui-panel px-4 py-6 text-sm text-slate-500">Loading user...</div>
   }
 
-  async function handleApply() {
-    setSaveError(null)
-    setSaving(true)
-    try {
-      await setUserStatus(user!.id, status)
-      navigate('/admin/users')
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save user changes')
-    } finally {
-      setSaving(false)
-    }
+  if (!user) {
+    return <Navigate to="/admin/users" replace />
   }
 
   return (
@@ -404,20 +253,21 @@ export function UserDetailPage() {
       />
 
       <DetailPanel>
-        {saveError ? (
-          <div className="px-5 pt-5">
-            <DetailAlert title="Update failed" description={saveError} />
-          </div>
+        {user.status === 'Suspended' ? (
+          <DetailAlert
+            className="mb-0"
+            title="User restricted"
+            description="This account is suspended and cannot submit or release jobs until it is reactivated."
+          />
         ) : null}
 
-        <DetailSection title="Identity">
+        <DetailSection title="Access and quota">
           <label>
-            <div className="ui-detail-label">Username</div>
-            <input className="ui-input mt-2 font-mono" defaultValue={user.username} />
-          </label>
-          <label>
-            <div className="ui-detail-label">Full name</div>
-            <input className="ui-input mt-2" defaultValue={user.displayName} />
+            <div className="ui-detail-label">Status</div>
+            <select className="ui-select mt-2 w-full" defaultValue={user.status}>
+              <option>Active</option>
+              <option>Suspended</option>
+            </select>
           </label>
           <label>
             <div className="ui-detail-label">Role</div>
@@ -429,44 +279,6 @@ export function UserDetailPage() {
             </select>
           </label>
           <label>
-            <div className="ui-detail-label">Status</div>
-            <select className="ui-select mt-2 w-full" value={status} onChange={(e) => setStatus(e.target.value as 'Active' | 'Suspended')}>
-              <option>Active</option>
-              <option>Suspended</option>
-            </select>
-          </label>
-        </DetailSection>
-
-        <DetailSection title="Contact and directory">
-          <label>
-            <div className="ui-detail-label">Email</div>
-            <input className="ui-input mt-2" defaultValue={user.email} />
-          </label>
-          <label>
-            <div className="ui-detail-label">Department</div>
-            <input className="ui-input mt-2" defaultValue={user.department} />
-          </label>
-          <label>
-            <div className="ui-detail-label">Office</div>
-            <input className="ui-input mt-2" defaultValue={user.office} />
-          </label>
-          <label>
-            <div className="ui-detail-label">Last seen</div>
-            <input className="ui-input mt-2" defaultValue={user.lastSeen} />
-          </label>
-        </DetailSection>
-
-        {status === 'Suspended' ? (
-          <div className="px-5 pt-5">
-            <DetailAlert
-              title="User restricted"
-              description="This account is suspended and cannot submit or release jobs until it is reactivated."
-            />
-          </div>
-        ) : null}
-
-        <DetailSection title="Access and restrictions">
-          <label>
             <div className="ui-detail-label">Balance</div>
             <input className="ui-input mt-2" defaultValue={user.quotaTotal - user.quotaUsed} />
           </label>
@@ -475,7 +287,7 @@ export function UserDetailPage() {
             <input className="ui-input mt-2" defaultValue={user.jobCount} />
           </label>
           <label className="ui-checkbox-line xl:col-span-2">
-            <input type="checkbox" checked={status === 'Suspended'} readOnly />
+            <input type="checkbox" defaultChecked={user.status === 'Suspended'} />
             <span>Restricted</span>
           </label>
           <label className="xl:col-span-2">
@@ -503,9 +315,36 @@ export function UserDetailPage() {
           </label>
         </DetailSection>
 
+        <DetailSection title="Profile">
+          <label>
+            <div className="ui-detail-label">Username</div>
+            <input className="ui-input mt-2 font-mono" defaultValue={user.username} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Full name</div>
+            <input className="ui-input mt-2" defaultValue={user.displayName} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Email</div>
+            <input className="ui-input mt-2" defaultValue={user.email} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Department</div>
+            <input className="ui-input mt-2" defaultValue={user.department} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Office</div>
+            <input className="ui-input mt-2" defaultValue={user.office} />
+          </label>
+          <label>
+            <div className="ui-detail-label">Last seen</div>
+            <input className="ui-input mt-2" defaultValue={user.lastSeen} />
+          </label>
+        </DetailSection>
+
         <DetailActionBar>
-          <button className="ui-button-ghost" onClick={() => navigate('/admin/users')}>Cancel</button>
-          <button className="ui-button" onClick={handleApply} disabled={saving}>Apply</button>
+          <button className="ui-button-ghost">Cancel</button>
+          <button className="ui-button">Apply</button>
         </DetailActionBar>
       </DetailPanel>
     </div>

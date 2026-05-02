@@ -2,10 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { validateBody, validateQuery } from '../middleware/validate.js'
+import { created, noContent, ok, paginated } from '../lib/response.js'
 import * as usersService from '../services/users.service.js'
-import { hashPassword } from '../lib/jwt.js'
-import { ok, created, noContent, paginated } from '../lib/response.js'
-import { ForbiddenError } from '../lib/errors.js'
 
 const router = Router()
 router.use(authenticate)
@@ -13,101 +11,68 @@ router.use(authenticate)
 const listSchema = z.object({
   search: z.string().optional(),
   status: z.enum(['active', 'suspended']).optional(),
-  role: z.string().optional(),
+  role: z.enum(['admin', 'technician', 'standard_user']).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
 const createSchema = z.object({
-  id: z.string().min(1).max(20),
-  username: z.string().min(2).max(64),
+  username: z.string().min(2).max(120),
   email: z.string().email(),
   displayName: z.string().min(1).max(255),
+  universityId: z.string().max(64).optional(),
   password: z.string().min(6),
   role: z.enum(['admin', 'technician', 'standard_user']).default('standard_user'),
-  departmentId: z.string().uuid().optional(),
-  allocatedPages: z.number().int().positive().optional(),
+  departmentId: z.coerce.number().int().positive().optional(),
+  allocatedPages: z.number().int().min(0).optional(),
 })
 
 const updateSchema = z.object({
-  displayName: z.string().min(1).max(255).optional(),
   email: z.string().email().optional(),
-  role: z.string().optional(),
-  departmentId: z.string().uuid().nullable().optional(),
-  allocatedPages: z.number().int().positive().optional(),
+  displayName: z.string().min(1).max(255).optional(),
+  role: z.enum(['admin', 'technician', 'standard_user']).optional(),
+  departmentId: z.coerce.number().int().positive().nullable().optional(),
+  allocatedPages: z.number().int().min(0).optional(),
 })
 
-async function assertTechnicianCanManageTarget(req: Parameters<typeof router.get>[1] extends never ? never : any, targetUserId: string) {
-  if (req.user?.role !== 'technician') return
-  const target = await usersService.getUserById(targetUserId)
-  if (target.role !== 'standard_user') {
-    throw new ForbiddenError('Technicians can only manage student accounts')
-  }
-}
-
-// GET /api/users
 router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema), async (req, res) => {
-  const result = await usersService.listUsers((req as any).parsedQuery as z.infer<typeof listSchema>)
-  paginated(res, result)
+  const filters = (req as typeof req & { parsedQuery: z.infer<typeof listSchema> }).parsedQuery
+  paginated(res, await usersService.listUsers(filters))
 })
 
-// POST /api/users
 router.post('/', requireRole('admin'), validateBody(createSchema), async (req, res) => {
-  const body = req.body as z.infer<typeof createSchema>
-  const passwordHash = hashPassword(body.password)
-  const user = await usersService.createUser({ ...body, passwordHash })
-  created(res, user)
+  created(res, await usersService.createUser(req.body as z.infer<typeof createSchema>))
 })
 
-// GET /api/users/:id
 router.get('/:id', async (req, res) => {
-  // Users can fetch themselves; admins/techs can fetch anyone
-  const targetId = req.params.id === 'me' ? req.user!.id : req.params.id
-  const user = await usersService.getUserById(targetId)
-  ok(res, user)
+  const id = String(req.params.id) === 'me' ? String(req.user!.id) : String(req.params.id)
+  ok(res, await usersService.getUserByPublicId(id))
 })
 
-// PATCH /api/users/:id
 router.patch('/:id', requireRole('admin'), validateBody(updateSchema), async (req, res) => {
-  const user = await usersService.updateUser(req.params.id, req.body as z.infer<typeof updateSchema>)
-  ok(res, user)
+  ok(res, await usersService.updateUser(String(req.params.id), req.body as z.infer<typeof updateSchema>))
 })
 
-// POST /api/users/:id/suspend
 router.post('/:id/suspend', requireRole('admin', 'technician'), async (req, res) => {
-  await assertTechnicianCanManageTarget(req, req.params.id)
-  await usersService.suspendUser(req.params.id)
+  await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
+  await usersService.suspendUser(String(req.params.id))
   ok(res, { message: 'User suspended' })
 })
 
-// POST /api/users/:id/reactivate
 router.post('/:id/reactivate', requireRole('admin', 'technician'), async (req, res) => {
-  await assertTechnicianCanManageTarget(req, req.params.id)
-  await usersService.reactivateUser(req.params.id)
+  await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
+  await usersService.reactivateUser(String(req.params.id))
   ok(res, { message: 'User reactivated' })
 })
 
-// PATCH /api/users/:id/quota — technician can adjust quota
-const quotaSchema = z.object({ allocatedPages: z.number().int().min(0) })
-router.patch('/:id/quota', requireRole('admin', 'technician'), validateBody(quotaSchema), async (req, res) => {
-  await assertTechnicianCanManageTarget(req, req.params.id)
-  const body = req.body as z.infer<typeof quotaSchema>
-  const user = await usersService.updateUser(req.params.id, { allocatedPages: body.allocatedPages })
-  ok(res, user)
+router.patch('/:id/quota', requireRole('admin', 'technician'), validateBody(z.object({ allocatedPages: z.number().int().min(0) })), async (req, res) => {
+  await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
+  ok(res, await usersService.updateUser(String(req.params.id), { allocatedPages: req.body.allocatedPages }))
 })
 
-// DELETE /api/users/:id
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await usersService.deleteUser(req.params.id)
+  await usersService.deleteUser(String(req.params.id))
   noContent(res)
 })
 
-// GET /api/users/:id/jobs
-router.get('/:id/jobs', requireRole('admin', 'technician'), async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1
-  const limit = parseInt(req.query.limit as string) || 20
-  const jobs = await usersService.getUserJobs(req.params.id, limit, page)
-  ok(res, jobs)
-})
-
-export default router
+export { router as usersRouter }
