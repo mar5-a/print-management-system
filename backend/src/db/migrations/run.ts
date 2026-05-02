@@ -16,7 +16,7 @@ async function runMigrations() {
   `)
 
   const result = await query('SELECT filename FROM _migrations ORDER BY filename')
-  const executed = new Set<string>(result.rows.map((r: { filename: string }) => r.filename))
+  const executed = new Set<string>(result.rows.map(r => String(r['filename'])))
 
   const files = (await readdir(__dirname))
     .filter(f => f.endsWith('.sql'))

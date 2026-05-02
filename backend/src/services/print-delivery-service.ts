@@ -4,7 +4,6 @@ import crypto from 'node:crypto'
 import { config } from '../config.js'
 import { GhostscriptPdfConverter } from './ghostscript-pdf-converter.js'
 import { RawSocketPrintConnector } from './raw-socket-print-connector.js'
-import { WindowsQueuePrintClient } from './windows-queue-print-client.js'
 
 interface PrinterDeliveryTarget {
   connector_type: string
@@ -23,21 +22,9 @@ export class PrintDeliveryService {
   constructor(
     private readonly converter = new GhostscriptPdfConverter(),
     private readonly rawSocket = new RawSocketPrintConnector(),
-    private readonly windowsQueue = new WindowsQueuePrintClient(),
   ) {}
 
-  async deliverPdf({ uploadedPath, originalFileName, printer }: DeliverPrintJobOptions) {
-    if (printer.connector_type === 'windows_queue') {
-      const printerName = printer.connector_target ?? String(printer.connector_options.windowsQueueTarget ?? printer.name)
-      const result = await this.windowsQueue.printUploadedPdf({ uploadedPath, originalFileName, printerName })
-
-      return {
-        channel: 'windows_queue',
-        status: result.status,
-        details: result,
-      }
-    }
-
+  async deliverPdf({ uploadedPath, originalFileName: _originalFileName, printer }: DeliverPrintJobOptions) {
     const { host, port } = parseRawSocketTarget(printer.connector_target)
     const deliveryId = crypto.randomUUID()
     const postScriptPath = path.join(config.convertedDir, `${deliveryId}.ps`)

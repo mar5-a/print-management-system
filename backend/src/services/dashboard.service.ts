@@ -1,3 +1,9 @@
+/**
+ * dashboard.service.ts
+ * Aggregates statistics for the admin/technician dashboard in a single round-trip.
+ * Runs five queries in parallel (users, printers, jobs, alerts, recent jobs)
+ * and combines the results into a flat snapshot object.
+ */
 import { query } from '../db/client.js'
 
 export async function getDashboardSnapshot() {

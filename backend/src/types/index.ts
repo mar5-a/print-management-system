@@ -123,11 +123,15 @@ export interface DbUserQuota {
   updated_at: Date
 }
 
+// ── Shared role type ────────────────────────────────────────────────────────
+
+export type UserRole = 'admin' | 'technician' | 'standard_user'
+
 // ── JWT payload ──────────────────────────────────────────────────────────────
 
 export interface TokenPayload {
   sub: string  // user id
-  role: 'admin' | 'technician' | 'standard_user'
+  role: UserRole
   iat: number
   exp: number
 }
@@ -135,8 +139,9 @@ export interface TokenPayload {
 // ── Authenticated request ────────────────────────────────────────────────────
 
 export interface AuthenticatedUser {
-  id: string
-  role: 'admin' | 'technician' | 'standard_user'
+  id: number
+  role: UserRole
+  roles: UserRole[]
 }
 
 // ── Pagination ───────────────────────────────────────────────────────────────

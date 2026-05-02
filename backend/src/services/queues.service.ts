@@ -1,6 +1,11 @@
-import { query, transaction } from '../db/pool.js'
+/**
+ * queues.service.ts
+ * Print queue management: list, create, update, delete queues and their printer assignments.
+ * Also handles eligibility logic — which queues a given user can submit jobs to.
+ */
+import { query, transaction } from '../db/client.js'
 import { ConflictError, NotFoundError } from '../lib/errors.js'
-import type { PaginatedResult } from '../types/api.js'
+import type { PaginatedResult } from '../types/index.js'
 
 interface QueueFilters {
   status?: string

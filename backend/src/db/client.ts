@@ -1,3 +1,14 @@
+/**
+ * client.ts
+ * PostgreSQL connection pool and query helpers.
+ * All database access in the app goes through this module.
+ *
+ * Exports:
+ *   query<T>()       — run a single parameterised query
+ *   transaction<T>() — run multiple queries in an ACID transaction (auto-rollback on error)
+ *   getClient()      — get a raw PoolClient for advanced use
+ *   closePool()      — gracefully drain the pool (used in tests/shutdown)
+ */
 import pg, { Pool, PoolClient } from 'pg'
 import dotenv from 'dotenv'
 

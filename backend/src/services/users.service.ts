@@ -1,8 +1,14 @@
-import { query, transaction } from '../db/pool.js'
+/**
+ * users.service.ts
+ * All user management operations: listing, creating, updating, suspending, and deleting users.
+ * Also handles role assignment and quota management.
+ * Admin-only writes; technicians get read access with limited update rights.
+ */
+import { query, transaction } from '../db/client.js'
 import { ConflictError, ForbiddenError, NotFoundError } from '../lib/errors.js'
 import { hashPassword } from '../lib/jwt.js'
 import { toPublicUser } from './user-shape.js'
-import type { PaginatedResult, UserRole } from '../types/api.js'
+import type { PaginatedResult, UserRole } from '../types/index.js'
 
 interface ListUsersFilters {
   search?: string

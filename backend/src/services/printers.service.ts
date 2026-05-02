@@ -1,6 +1,11 @@
-import { query } from '../db/pool.js'
+/**
+ * printers.service.ts
+ * CRUD operations for printers: list, get, create, update, and delete.
+ * Printers are physical devices; each can be assigned to one or more queues.
+ */
+import { query } from '../db/client.js'
 import { ConflictError, NotFoundError } from '../lib/errors.js'
-import type { PaginatedResult } from '../types/api.js'
+import type { PaginatedResult } from '../types/index.js'
 
 interface ListPrintersFilters {
   status?: string

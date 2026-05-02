@@ -1,10 +1,16 @@
+/**
+ * jobs.service.ts
+ * Core print job lifecycle: submit, list, release, cancel, and expire jobs.
+ * Jobs start in 'held' status and must be released by the user before printing.
+ * Page quota is checked on submit and deducted on release.
+ */
 import fs from 'node:fs/promises'
 import crypto from 'node:crypto'
-import { query, transaction } from '../db/pool.js'
+import { query, transaction } from '../db/client.js'
 import { ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
 import { PrintDeliveryService } from './print-delivery-service.js'
 import { resolveDefaultQueueForUser } from './queues.service.js'
-import type { AuthenticatedUser, PaginatedResult } from '../types/api.js'
+import type { AuthenticatedUser, PaginatedResult } from '../types/index.js'
 
 interface SubmitJobInput {
   file: Express.Multer.File

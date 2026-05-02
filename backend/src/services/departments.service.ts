@@ -1,3 +1,9 @@
+/**
+ * departments.service.ts
+ * Read-only access to the departments table.
+ * Departments are also used as print groups — see groups.service.ts for
+ * the admin CRUD operations.
+ */
 import { query } from '../db/client.js'
 
 export async function listDepartments() {

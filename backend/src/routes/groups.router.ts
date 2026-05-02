@@ -35,13 +35,13 @@ router.get('/:id', async (req, res) => {
 
 // PATCH /api/groups/:id
 router.patch('/:id', requireRole('admin'), validateBody(updateSchema), async (req, res) => {
-  const group = await groupsService.updateGroup(req.params.id, req.body as z.infer<typeof updateSchema>)
+  const group = await groupsService.updateGroup(String(req.params['id']), req.body as z.infer<typeof updateSchema>)
   ok(res, group)
 })
 
 // DELETE /api/groups/:id
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await groupsService.deleteGroup(req.params.id)
+  await groupsService.deleteGroup(String(req.params['id']))
   noContent(res)
 })
 

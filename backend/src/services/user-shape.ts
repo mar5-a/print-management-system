@@ -1,5 +1,5 @@
 import type { QueryResultRow } from 'pg'
-import type { UserRole } from '../types/api.js'
+import type { UserRole } from '../types/index.js'
 
 const rolePriority: UserRole[] = ['admin', 'technician', 'standard_user']
 

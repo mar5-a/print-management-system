@@ -1,3 +1,10 @@
+/**
+ * error-handler.ts
+ * Global Express error handler. Must be registered last with app.use().
+ *
+ * - Known AppError subclasses → returns their status code and machine-readable code.
+ * - Unknown errors → returns 500 INTERNAL_ERROR (no stack traces leaked to the client).
+ */
 import type { ErrorRequestHandler } from 'express'
 import { AppError } from '../lib/errors.js'
 

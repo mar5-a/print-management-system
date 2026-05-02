@@ -1,8 +1,15 @@
-import { query } from '../db/pool.js'
+/**
+ * auth.service.ts
+ * Handles user authentication, session management, and auth logging.
+ *
+ * - login()   — validate credentials, issue a JWT, record the attempt in auth_logs
+ * - getMe()   — return the current user's full profile from the DB
+ */
+import { query } from '../db/client.js'
 import { UnauthorizedError } from '../lib/errors.js'
 import { signJwt, verifyPassword } from '../lib/jwt.js'
 import { pickPrimaryRole, toPublicUser, normalizeRoles } from './user-shape.js'
-import type { UserRole } from '../types/api.js'
+import type { UserRole } from '../types/index.js'
 
 interface LoginOptions {
   credential: string
@@ -10,6 +17,12 @@ interface LoginOptions {
   sourceIp?: string
 }
 
+/**
+ * Authenticate a user by email or username + password.
+ * Normalises the credential to lowercase before querying so login is case-insensitive.
+ * Throws UnauthorizedError for invalid credentials or inactive/suspended accounts.
+ * Always records the attempt in auth_logs (both success and failure).
+ */
 export async function login({ credential, password, sourceIp }: LoginOptions) {
   const normalizedCredential = credential.trim().toLowerCase()
   const result = await query(
@@ -58,6 +71,7 @@ export async function login({ credential, password, sourceIp }: LoginOptions) {
   }
 }
 
+/** Return the full profile for the currently authenticated user. */
 export async function getMe(userId: number) {
   const result = await query(
     `SELECT
@@ -87,6 +101,11 @@ export async function getMe(userId: number) {
   return toPublicUser(user)
 }
 
+/**
+ * Write an auth attempt to auth_logs for auditing.
+ * Failures are always logged; successes are logged to detect brute-force patterns.
+ * Errors are swallowed — a logging failure must never break the login flow.
+ */
 async function logAuthAttempt(
   userId: number | null,
   usernameAttempted: string,
@@ -103,6 +122,7 @@ async function logAuthAttempt(
   })
 }
 
+/** Coerce an arbitrary string into a valid UserRole, defaulting to standard_user. */
 export function roleFromApiRole(role: string): UserRole {
   if (role === 'admin' || role === 'technician' || role === 'standard_user') {
     return role
