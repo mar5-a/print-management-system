@@ -43,8 +43,10 @@ router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema), a
   paginated(res, await usersService.listUsers(filters))
 })
 
-router.post('/', requireRole('admin'), validateBody(createSchema), async (req, res) => {
-  created(res, await usersService.createUser(req.body as z.infer<typeof createSchema>, req.user))
+router.post('/', requireRole('admin', 'technician'), validateBody(createSchema), async (req, res) => {
+  const input = req.body as z.infer<typeof createSchema>
+  usersService.assertTechnicianCanCreateRole(req.user!.roles, input.role)
+  created(res, await usersService.createUser(input, req.user))
 })
 
 router.get('/groups', requireRole('admin', 'technician'), async (_req, res) => {
@@ -56,8 +58,11 @@ router.get('/:id', async (req, res) => {
   ok(res, await usersService.getUserByPublicId(id))
 })
 
-router.patch('/:id', requireRole('admin'), validateBody(updateSchema), async (req, res) => {
-  ok(res, await usersService.updateUser(String(req.params.id), req.body as z.infer<typeof updateSchema>, req.user))
+router.patch('/:id', requireRole('admin', 'technician'), validateBody(updateSchema), async (req, res) => {
+  const input = req.body as z.infer<typeof updateSchema>
+  await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
+  usersService.assertTechnicianCanAssignRole(req.user!.roles, input.role)
+  ok(res, await usersService.updateUser(String(req.params.id), input, req.user))
 })
 
 router.post('/:id/suspend', requireRole('admin', 'technician'), async (req, res) => {
@@ -77,7 +82,8 @@ router.patch('/:id/quota', requireRole('admin', 'technician'), validateBody(z.ob
   ok(res, await usersService.updateUser(String(req.params.id), { allocatedPages: req.body.allocatedPages }, req.user))
 })
 
-router.delete('/:id', requireRole('admin'), async (req, res) => {
+router.delete('/:id', requireRole('admin', 'technician'), async (req, res) => {
+  await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
   await usersService.deleteUser(String(req.params.id), req.user)
   noContent(res)
 })

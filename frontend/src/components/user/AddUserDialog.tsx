@@ -32,6 +32,7 @@ const initialForm: FormState = {
 interface AddUserDialogProps {
   open: boolean
   groupOptions: string[]
+  roleOptions?: NewUserRole[]
   isSubmitting: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (input: CreateUserInput) => Promise<void>
@@ -40,6 +41,7 @@ interface AddUserDialogProps {
 export function AddUserDialog({
   open,
   groupOptions,
+  roleOptions = ['Administrator', 'Technician', 'Student'],
   isSubmitting,
   onOpenChange,
   onSubmit,
@@ -154,9 +156,9 @@ export function AddUserDialog({
                 required
               >
                 <option value="">Select role</option>
-                <option>Administrator</option>
-                <option>Technician</option>
-                <option>Student</option>
+                {roleOptions.map((roleOption) => (
+                  <option key={roleOption}>{roleOption}</option>
+                ))}
               </select>
             </label>
 

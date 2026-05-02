@@ -10,6 +10,10 @@ router.get('/', requireRole('admin', 'technician'), async (_req, res) => {
   ok(res, await dashboardService.getDashboardSnapshot())
 })
 
+router.get('/technician', requireRole('admin', 'technician'), async (_req, res) => {
+  ok(res, await dashboardService.getTechnicianDashboardSnapshot())
+})
+
 router.get('/print-logs', requireRole('admin', 'technician'), async (req, res) => {
   ok(res, await dashboardService.listRecentPrintLogs({
     search: getQueryString(req.query.search),

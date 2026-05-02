@@ -8,7 +8,7 @@ interface PrintersToolbarProps {
   onSearchChange: (value: string) => void
   onStatusChange: (value: PrinterStatusFilter) => void
   onReset: () => void
-  onAddPrinter: () => void
+  onAddPrinter?: () => void
 }
 
 export function PrintersToolbar({
@@ -44,10 +44,12 @@ export function PrintersToolbar({
             <RotateCcw className="size-3.5" />
             Reset
           </button>
-          <button type="button" className="ui-button-action h-9 px-3 py-0" onClick={onAddPrinter}>
-            <Plus className="size-4" />
-            Add printer
-          </button>
+          {onAddPrinter ? (
+            <button type="button" className="ui-button-action h-9 px-3 py-0" onClick={onAddPrinter}>
+              <Plus className="size-4" />
+              Add printer
+            </button>
+          ) : null}
         </>
       }
     />

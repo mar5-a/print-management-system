@@ -32,7 +32,7 @@ const createSchema = z.object({
   connectorTarget: z.string().max(255).optional(),
 })
 
-router.get('/', validateQuery(listSchema), async (req, res) => {
+router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema), async (req, res) => {
   const filters = (req as typeof req & { parsedQuery: z.infer<typeof listSchema> }).parsedQuery
   paginated(res, await printersService.listPrinters(filters))
 })
@@ -41,11 +41,11 @@ router.post('/', requireRole('admin'), validateBody(createSchema), async (req, r
   created(res, await printersService.createPrinter(req.body as z.infer<typeof createSchema>, req.user))
 })
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireRole('admin'), async (req, res) => {
   ok(res, await printersService.getPrinterById(String(req.params.id)))
 })
 
-router.patch('/:id', requireRole('admin', 'technician'), validateBody(createSchema.partial()), async (req, res) => {
+router.patch('/:id', requireRole('admin'), validateBody(createSchema.partial()), async (req, res) => {
   ok(res, await printersService.updatePrinter(String(req.params.id), req.body as z.infer<typeof createSchema>, req.user))
 })
 
@@ -54,7 +54,7 @@ router.delete('/:id', requireRole('admin'), async (req, res) => {
   noContent(res)
 })
 
-router.get('/:id/errors', requireRole('admin', 'technician'), async (req, res) => {
+router.get('/:id/errors', requireRole('admin'), async (req, res) => {
   ok(res, await printersService.getPrinterErrors(String(req.params.id)))
 })
 

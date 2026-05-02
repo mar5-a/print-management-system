@@ -399,3 +399,23 @@ export async function assertTechnicianCanManageTarget(actorRoles: UserRole[], ta
     throw new ForbiddenError('Technicians can only manage standard user accounts')
   }
 }
+
+export function assertTechnicianCanCreateRole(actorRoles: UserRole[], role: UserRole) {
+  if (!actorRoles.includes('technician') || actorRoles.includes('admin')) {
+    return
+  }
+
+  if (role !== 'standard_user') {
+    throw new ForbiddenError('Technicians can only create standard user accounts')
+  }
+}
+
+export function assertTechnicianCanAssignRole(actorRoles: UserRole[], role?: UserRole) {
+  if (!actorRoles.includes('technician') || actorRoles.includes('admin') || !role) {
+    return
+  }
+
+  if (role !== 'standard_user') {
+    throw new ForbiddenError('Technicians can only assign standard user access')
+  }
+}

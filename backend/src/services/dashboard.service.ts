@@ -1,4 +1,5 @@
 import { query } from '../db/pool.js'
+import { listAlerts } from './alerts.service.js'
 
 export interface RecentPrintLog {
   id: string
@@ -139,6 +140,96 @@ export async function getDashboardSnapshot() {
       name: row.name,
       status: row.status,
       pending_jobs: Number(row.pending_jobs),
+    })),
+  }
+}
+
+export async function getTechnicianDashboardSnapshot() {
+  const [users, printers, jobs, printerHealth, alerts] = await Promise.all([
+    query<{ active_users: string; suspended_users: string }>(
+      `WITH role_flags AS (
+         SELECT
+           u.id,
+           BOOL_OR(r.name = 'admin') AS is_admin,
+           BOOL_OR(r.name = 'technician') AS is_technician
+         FROM users u
+         LEFT JOIN user_roles ur ON ur.user_id = u.id
+         LEFT JOIN roles r ON r.id = ur.role_id
+         GROUP BY u.id
+       )
+       SELECT
+         COUNT(*) FILTER (
+           WHERE u.is_active = TRUE
+             AND u.is_suspended = FALSE
+             AND COALESCE(role_flags.is_admin, FALSE) = FALSE
+             AND COALESCE(role_flags.is_technician, FALSE) = FALSE
+         )::text AS active_users,
+         COUNT(*) FILTER (
+           WHERE u.is_suspended = TRUE
+             AND COALESCE(role_flags.is_admin, FALSE) = FALSE
+             AND COALESCE(role_flags.is_technician, FALSE) = FALSE
+         )::text AS suspended_users
+       FROM users u
+       LEFT JOIN role_flags ON role_flags.id = u.id`,
+    ),
+    query<{ online_printers: string; problem_printers: string }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'online')::text AS online_printers,
+         COUNT(*) FILTER (WHERE status NOT IN ('online', 'archived'))::text AS problem_printers
+       FROM printers
+       WHERE status <> 'archived'`,
+    ),
+    query<{ held_jobs: string }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status IN ('held', 'queued', 'printing', 'blocked'))::text AS held_jobs
+       FROM print_jobs`,
+    ),
+    query<{
+      id: string
+      name: string
+      status: string
+      queue_name: string | null
+      held_jobs: string
+      location: string | null
+    }>(
+      `SELECT
+         p.printer_uuid::text AS id,
+         p.name,
+         p.status,
+         q.name AS queue_name,
+         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing', 'blocked'))::text AS held_jobs,
+         p.location
+       FROM printers p
+       LEFT JOIN queue_printers qp ON qp.printer_id = p.id AND qp.is_enabled = TRUE
+       LEFT JOIN print_queues q ON q.id = qp.queue_id
+       LEFT JOIN print_jobs pj ON pj.printer_id = p.id
+       WHERE p.status <> 'archived'
+       GROUP BY p.id, q.name
+       ORDER BY p.name`,
+    ),
+    listAlerts({ status: 'all' }),
+  ])
+
+  const userMetrics = users.rows[0]
+  const printerMetrics = printers.rows[0]
+  const jobMetrics = jobs.rows[0]
+  const activeAlerts = alerts.filter((alert) => alert.status === 'open')
+
+  return {
+    active_users: Number(userMetrics?.active_users ?? 0),
+    suspended_users: Number(userMetrics?.suspended_users ?? 0),
+    online_printers: Number(printerMetrics?.online_printers ?? 0),
+    problem_printers: Number(printerMetrics?.problem_printers ?? 0),
+    held_jobs: Number(jobMetrics?.held_jobs ?? 0),
+    active_alerts: activeAlerts.length,
+    alerts,
+    printer_health: printerHealth.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      queue: row.queue_name ?? 'Unassigned',
+      held_jobs: Number(row.held_jobs),
+      location: row.location ?? 'Unassigned',
     })),
   }
 }

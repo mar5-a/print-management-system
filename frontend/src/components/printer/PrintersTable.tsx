@@ -4,7 +4,7 @@ import { getPrinterStatusClass } from './printer-format'
 
 interface PrintersTableProps {
   rows: AdminPrinter[]
-  onRowClick: (printer: AdminPrinter) => void
+  onRowClick?: (printer: AdminPrinter) => void
 }
 
 export function PrintersTable({ rows, onRowClick }: PrintersTableProps) {

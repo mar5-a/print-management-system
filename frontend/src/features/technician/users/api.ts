@@ -1,16 +1,37 @@
 import {
-  listTechUsers,
-  getTechUserById,
-  updateTechUserQuota,
-  setTechUserStatus,
-} from '@/mocks/technician-store'
+  createUser,
+  deleteUser,
+  getUserByIdOrUndefined,
+  listUserGroups,
+  listUsers,
+  updateUser,
+  type CreateUserInput,
+  type ListUsersInput,
+  type UpdateUserInput,
+} from '@/features/admin/users/api'
 
-export { listTechUsers, getTechUserById, updateTechUserQuota, setTechUserStatus }
+export type { CreateUserInput, ListUsersInput, UpdateUserInput }
 
-export function listTechUsersFiltered() {
-  return listTechUsers()
+export function listTechUsers(input: ListUsersInput = {}) {
+  return listUsers(input)
+}
+
+export function listTechUserGroups() {
+  return listUserGroups()
+}
+
+export function createTechUser(input: CreateUserInput) {
+  return createUser({ ...input, role: 'Student' })
+}
+
+export function updateTechUser(userId: string, input: UpdateUserInput) {
+  return updateUser(userId, { ...input, role: 'Student' })
+}
+
+export function deleteTechUser(userId: string) {
+  return deleteUser(userId)
 }
 
 export function getTechUserOrUndefined(userId?: string) {
-  return getTechUserById(userId)
+  return getUserByIdOrUndefined(userId)
 }

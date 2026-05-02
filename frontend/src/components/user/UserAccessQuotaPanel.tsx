@@ -6,6 +6,7 @@ interface UserAccessQuotaPanelProps {
   user: AdminUser
   form: UserDetailForm
   groupOptions: string[]
+  roleOptions?: AdminUser['role'][]
   isReadOnly?: boolean
   onFieldChange: UserDetailFormChangeHandler
 }
@@ -14,6 +15,7 @@ export function UserAccessQuotaPanel({
   user,
   form,
   groupOptions,
+  roleOptions = ['Administrator', 'Technician', 'Faculty', 'Student'],
   isReadOnly = false,
   onFieldChange,
 }: UserAccessQuotaPanelProps) {
@@ -48,10 +50,9 @@ export function UserAccessQuotaPanel({
               disabled={isReadOnly}
               onChange={(event) => onFieldChange('role', event.target.value as AdminUser['role'])}
             >
-              <option>Administrator</option>
-              <option>Technician</option>
-              <option>Faculty</option>
-              <option>Student</option>
+              {roleOptions.map((roleOption) => (
+                <option key={roleOption}>{roleOption}</option>
+              ))}
             </select>
           </label>
           <label>
