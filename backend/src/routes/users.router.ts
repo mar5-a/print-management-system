@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { validateBody, validateQuery } from '../middleware/validate.js'
+import { ForbiddenError } from '../lib/errors.js'
 import { created, noContent, ok, paginated } from '../lib/response.js'
 import * as usersService from '../services/users.service.js'
 
@@ -71,7 +72,19 @@ router.patch('/:id/quota', requireRole('admin', 'technician'), validateBody(z.ob
 })
 
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await usersService.deleteUser(String(req.params.id))
+  const targetId = String(req.params.id)
+  const targetInternalId = await usersService.getUserInternalId(targetId)
+
+  if (targetInternalId === req.user!.id) {
+    throw new ForbiddenError('You cannot delete your own account')
+  }
+
+  const target = await usersService.getUserByPublicId(targetId)
+  if (target.role === 'admin') {
+    throw new ForbiddenError('Admin accounts cannot be deleted')
+  }
+
+  await usersService.deleteUser(targetId)
   noContent(res)
 })
 
