@@ -37,7 +37,9 @@ function resolveBackendPath(value: string) {
 
 export const config = {
   port: env.PORT,
-  frontendOrigin: env.FRONTEND_ORIGIN,
+  frontendOrigins: env.FRONTEND_ORIGIN.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   databaseUrl: env.DATABASE_URL,
   printer: {
     host: env.PRINTER_HOST,

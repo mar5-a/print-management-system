@@ -7,7 +7,7 @@ import { errorHandler } from './middleware/error-handler.js'
 
 const app = express()
 
-app.use(cors({ origin: config.frontendOrigin }))
+app.use(cors({ origin: config.frontendOrigins }))
 app.use(express.json())
 
 app.get('/health', (_req, res) => {

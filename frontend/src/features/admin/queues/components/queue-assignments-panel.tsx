@@ -1,30 +1,30 @@
 import { AlertTriangle, Save } from 'lucide-react'
 import { DetailActionBar, DetailPanel, DetailSection } from '@/components/ui/admin-detail'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { listQueueGroups, listQueuePrinters } from '@/features/admin/queues/api'
-import type { AdminPrinter } from '@/types/admin'
+import type { AdminGroup, AdminPrinter } from '@/types/admin'
 
 interface QueueAssignmentsPanelProps {
   assignedPrinters: AdminPrinter[]
+  groups: AdminGroup[]
   form: {
     allowedGroups: string[]
     printerIds: string[]
   }
   onApply: () => void
   onReviewLog: () => void
+  printers: AdminPrinter[]
   toggleAssignment: (field: 'printerIds' | 'allowedGroups', value: string) => void
 }
 
 export function QueueAssignmentsPanel({
   assignedPrinters,
   form,
+  groups,
   onApply,
   onReviewLog,
+  printers,
   toggleAssignment,
 }: QueueAssignmentsPanelProps) {
-  const printers = listQueuePrinters()
-  const groups = listQueueGroups()
-
   return (
     <DetailPanel>
       <DetailSection title="Assigned printers" columns="single" hint="A printer can only belong to one queue at a time. Reassigning it here removes it from the previous queue.">

@@ -1,3 +1,7 @@
-import { listTechPrinters } from '@/mocks/technician-store'
+import { listPrinters, type ListPrintersInput } from '@/features/admin/printers/api'
 
-export { listTechPrinters }
+export type { ListPrintersInput }
+
+export function listTechPrinters(input: ListPrintersInput = {}) {
+  return listPrinters(input)
+}

@@ -12,10 +12,14 @@ import { getTechAlertById, acknowledgeTechAlert } from './api'
 import type { TechAlert } from '@/types/technician'
 
 function severityMeta(severity: TechAlert['severity']) {
-  if (severity === 'critical')
+  if (severity === 'critical') {
     return { icon: <AlertTriangle className="size-5" />, label: 'Critical', color: 'text-danger-500' }
-  if (severity === 'warning')
+  }
+
+  if (severity === 'warning') {
     return { icon: <Bell className="size-5" />, label: 'Warning', color: 'text-warn-500' }
+  }
+
   return { icon: <CheckCircle2 className="size-5" />, label: 'Info', color: 'text-slate-500' }
 }
 
@@ -46,7 +50,7 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
       <PageHeader
         eyebrow="Alerts"
         title={currentAlert.title}
-        description={`${meta.label} · ${currentAlert.createdAt}`}
+        description={`${meta.label} - ${currentAlert.createdAt}`}
         meta={
           <button className="ui-button-secondary" onClick={() => navigate('/tech/alerts')}>
             Back to alerts
@@ -68,6 +72,12 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
             description="Review the affected device or queue impact before acknowledging this alert."
           />
         )}
+
+        {saveError ? (
+          <div className="border border-danger-200 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-600">
+            {saveError}
+          </div>
+        ) : null}
 
         <DetailSection title="Alert state">
           <div>
@@ -110,18 +120,18 @@ function TechAlertDetailInner({ alert }: { alert: TechAlert }) {
           <DetailSection title="Acknowledgement" columns="single">
             <div>
               <div className="ui-detail-label">Acknowledged by</div>
-              <div className="mt-2 text-sm text-ink-950">{currentAlert.acknowledgedBy ?? '—'}</div>
+              <div className="mt-2 text-sm text-ink-950">{currentAlert.acknowledgedBy ?? '-'}</div>
             </div>
             <div>
               <div className="ui-detail-label">Acknowledged at</div>
-              <div className="mt-2 text-sm text-ink-950">{currentAlert.acknowledgedAt ?? '—'}</div>
+              <div className="mt-2 text-sm text-ink-950">{currentAlert.acknowledgedAt ?? '-'}</div>
             </div>
           </DetailSection>
         )}
 
         {!currentAlert.acknowledged && (
           <DetailActionBar>
-            <button className="ui-button-ghost" onClick={() => navigate('/tech/alerts')}>
+            <button className="ui-button-ghost" onClick={() => navigate('/tech/alerts')} disabled={isSaving}>
               Cancel
             </button>
             <button className="ui-button" onClick={handleAcknowledge} disabled={saving}>
@@ -146,6 +156,15 @@ export function TechAlertDetailScreen() {
   if (loading) return null
   if (!alert) {
     return <Navigate to="/tech/alerts" replace />
+  }
+
+  if (isLoading || !alert) {
+    return (
+      <div className="min-w-0">
+        <PageHeader eyebrow="Alerts" title="Loading alert" />
+        <div className="ui-panel px-5 py-8 text-sm text-slate-500">Loading alert details...</div>
+      </div>
+    )
   }
 
   return <TechAlertDetailInner alert={alert} />

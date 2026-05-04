@@ -21,6 +21,7 @@ export function normalizeRoles(value: unknown): UserRole[] {
 
 export function toPublicUser(row: QueryResultRow) {
   const roles = normalizeRoles(row.roles)
+  const groups = Array.isArray(row.groups) ? row.groups.map(String) : []
 
   return {
     id: String(row.user_uuid ?? row.id),
@@ -29,8 +30,8 @@ export function toPublicUser(row: QueryResultRow) {
     email: row.email ? String(row.email) : '',
     display_name: String(row.display_name),
     university_id: row.university_id ? String(row.university_id) : null,
-    department_name: row.department_name ? String(row.department_name) : null,
     roles,
+    groups,
     role: pickPrimaryRole(roles),
     is_active: Boolean(row.is_active),
     is_suspended: Boolean(row.is_suspended),

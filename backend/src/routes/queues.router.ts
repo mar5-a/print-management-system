@@ -23,6 +23,7 @@ const queueSchema = z.object({
   releaseMode: z.enum(['secure_release', 'immediate']).optional(),
   retentionHours: z.number().int().positive().optional(),
   printerIds: z.array(z.string()).optional(),
+  allowedGroups: z.array(z.string()).optional(),
   costPerPage: z.number().min(0).optional(),
 })
 
@@ -36,7 +37,7 @@ router.get('/eligible/mine', async (req, res) => {
 })
 
 router.post('/', requireRole('admin'), validateBody(queueSchema), async (req, res) => {
-  created(res, await queuesService.createQueue(req.body as z.infer<typeof queueSchema>, req.user!.id))
+  created(res, await queuesService.createQueue(req.body as z.infer<typeof queueSchema>, req.user!.id, req.user))
 })
 
 router.get('/:id', async (req, res) => {
@@ -44,11 +45,11 @@ router.get('/:id', async (req, res) => {
 })
 
 router.patch('/:id', requireRole('admin'), validateBody(queueSchema.partial()), async (req, res) => {
-  ok(res, await queuesService.updateQueue(String(req.params.id), req.body as z.infer<typeof queueSchema>))
+  ok(res, await queuesService.updateQueue(String(req.params.id), req.body as z.infer<typeof queueSchema>, req.user))
 })
 
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await queuesService.deleteQueue(String(req.params.id))
+  await queuesService.deleteQueue(String(req.params.id), req.user)
   noContent(res)
 })
 

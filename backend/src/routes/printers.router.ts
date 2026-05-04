@@ -18,9 +18,12 @@ const listSchema = z.object({
 const createSchema = z.object({
   name: z.string().min(1).max(150),
   model: z.string().max(150).optional(),
+  hostedOn: z.string().max(255).optional(),
   ipAddress: z.string().max(45).optional(),
   location: z.string().max(255).optional(),
   status: z.enum(['online', 'offline', 'maintenance', 'disabled']).optional(),
+  releaseMode: z.enum(['secure_release', 'immediate']).optional(),
+  tonerLevel: z.number().int().min(0).max(100).optional(),
   isColor: z.boolean().optional(),
   supportsDuplex: z.boolean().optional(),
   serialNumber: z.string().max(255).optional(),
@@ -29,29 +32,29 @@ const createSchema = z.object({
   connectorTarget: z.string().max(255).optional(),
 })
 
-router.get('/', validateQuery(listSchema), async (req, res) => {
+router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema), async (req, res) => {
   const filters = (req as typeof req & { parsedQuery: z.infer<typeof listSchema> }).parsedQuery
   paginated(res, await printersService.listPrinters(filters))
 })
 
 router.post('/', requireRole('admin'), validateBody(createSchema), async (req, res) => {
-  created(res, await printersService.createPrinter(req.body as z.infer<typeof createSchema>))
+  created(res, await printersService.createPrinter(req.body as z.infer<typeof createSchema>, req.user))
 })
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireRole('admin'), async (req, res) => {
   ok(res, await printersService.getPrinterById(String(req.params.id)))
 })
 
-router.patch('/:id', requireRole('admin', 'technician'), validateBody(createSchema.partial()), async (req, res) => {
-  ok(res, await printersService.updatePrinter(String(req.params.id), req.body as z.infer<typeof createSchema>))
+router.patch('/:id', requireRole('admin'), validateBody(createSchema.partial()), async (req, res) => {
+  ok(res, await printersService.updatePrinter(String(req.params.id), req.body as z.infer<typeof createSchema>, req.user))
 })
 
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await printersService.deletePrinter(String(req.params.id))
+  await printersService.deletePrinter(String(req.params.id), req.user)
   noContent(res)
 })
 
-router.get('/:id/errors', requireRole('admin', 'technician'), async (req, res) => {
+router.get('/:id/errors', requireRole('admin'), async (req, res) => {
   ok(res, await printersService.getPrinterErrors(String(req.params.id)))
 })
 
