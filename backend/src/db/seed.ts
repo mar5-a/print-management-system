@@ -21,7 +21,7 @@ async function seed() {
   )
 
   for (const row of result.rows) {
-    console.log(`  ✅  Password set for ${row.username}`)
+    console.log(`  ✅   Password set for ${row.username}`)
   }
 
   console.log('\n🎉  Done! Login with password: 123456')
