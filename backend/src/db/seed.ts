@@ -30,7 +30,7 @@ async function seed() {
   console.log('     student@university.edu (student)')
   await closePool()
 }
-
+// 
 seed().catch(err => {
   console.error('❌  Seed failed:', err)
   process.exit(1)
