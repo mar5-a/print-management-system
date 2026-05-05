@@ -17,7 +17,6 @@ interface BackendAuthUser {
   username: string
   email: string
   display_name: string
-  department_name: string | null
   role: 'admin' | 'technician' | 'standard_user'
   is_suspended: boolean
   quota_used: number
@@ -45,7 +44,6 @@ function mapAuthUser(user: BackendAuthUser): AuthUser {
     role: mapRole(user.role),
     status: user.is_suspended ? 'Suspended' : 'Active',
     displayName: user.display_name,
-    department: user.department_name ?? 'General Access',
     quotaUsed: user.quota_used,
     quotaTotal: user.quota_total,
   }

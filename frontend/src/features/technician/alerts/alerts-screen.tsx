@@ -23,27 +23,46 @@ export function TechAlertsScreen() {
   }, [])
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Acknowledged'>('All')
   const [severityFilter, setSeverityFilter] = useState<'All severities' | TechAlert['severity']>('All severities')
+  const [alerts, setAlerts] = useState<TechAlert[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const deferredSearch = useDeferredValue(search)
 
-  const filteredAlerts = useMemo(() => {
-    const query = deferredSearch.trim().toLowerCase()
-    return alerts.filter((alert) => {
-      const matchesSearch =
-        !query ||
-        [alert.title, alert.description, alert.deviceName ?? ''].some((v) =>
-          v.toLowerCase().includes(query),
-        )
-      const matchesFilter =
-        statusFilter === 'All'
-          ? true
-          : statusFilter === 'Active'
-            ? !alert.acknowledged
-            : alert.acknowledged
-      const matchesSeverity =
-        severityFilter === 'All severities' ? true : alert.severity === severityFilter
-      return matchesSearch && matchesFilter && matchesSeverity
-    })
-  }, [alerts, deferredSearch, statusFilter, severityFilter])
+  useEffect(() => {
+    let isCurrent = true
+
+    async function loadAlerts() {
+      setIsLoading(true)
+
+      try {
+        const nextAlerts = await listTechAlerts({
+          search: deferredSearch,
+          status: statusFilter,
+          severity: severityFilter,
+        })
+
+        if (isCurrent) {
+          setAlerts(nextAlerts)
+          setLoadError('')
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setAlerts([])
+          setLoadError(error instanceof Error ? error.message : 'Unable to load alerts.')
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadAlerts()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [deferredSearch, statusFilter, severityFilter])
 
   function resetFilters() {
     setSearch('')
@@ -97,6 +116,11 @@ export function TechAlertsScreen() {
       />
 
       <div className="mt-4">
+        {loadError ? (
+          <div className="mb-3 border border-danger-200 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-600">
+            {loadError}
+          </div>
+        ) : null}
         <DataTable<TechAlert>
           columns={[
             {
@@ -126,7 +150,7 @@ export function TechAlertsScreen() {
               key: 'device',
               header: 'Device',
               render: (a) => (
-                <span className="ui-table-secondary">{a.deviceName ?? '—'}</span>
+                <span className="ui-table-secondary">{a.deviceName ?? '-'}</span>
               ),
             },
             {
@@ -145,10 +169,10 @@ export function TechAlertsScreen() {
               ),
             },
           ]}
-          rows={filteredAlerts}
+          rows={alerts}
           getRowKey={(a) => a.id}
           onRowClick={(a) => navigate(`/tech/alerts/${a.id}`)}
-          emptyLabel="No alerts match the current search."
+          emptyLabel={isLoading ? 'Loading alerts...' : 'No alerts match the current search.'}
         />
       </div>
     </div>

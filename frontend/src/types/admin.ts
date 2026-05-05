@@ -7,7 +7,6 @@ export interface AdminUser {
   displayName: string
   email: string
   role: UserRole
-  department: string
   office: string
   status: 'Active' | 'Suspended'
   quotaUsed: number
@@ -29,7 +28,6 @@ export interface AdminGroup {
   quotaPerPeriod: number
   schedule: 'Monthly' | 'Semester' | 'Weekly'
   studentRestricted: boolean
-  newUserQuota: number
   defaultForNewUsers: boolean
   owner: string
 }
@@ -47,6 +45,9 @@ export interface AdminPrinter {
   status: 'Online' | 'Offline' | 'Maintenance'
   pendingJobs: number
   releasedToday: number
+  totalPages: number
+  totalJobs: number
+  isColor: boolean
   toner: number
   holdReleaseMode: 'Secure Release' | 'Immediate'
   failureMode: 'Hold until redirected' | 'Retry then notify' | 'Cancel and notify'

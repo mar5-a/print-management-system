@@ -1,10 +1,11 @@
 import { Plus } from 'lucide-react'
-import { listQueueGroups, listQueuePrinters } from '@/features/admin/queues/api'
 import type { QueueDraft } from '../types'
-import type { QueueAccessScope, QueueReleaseMode } from '@/types/admin'
+import type { AdminGroup, AdminPrinter, QueueAccessScope, QueueReleaseMode } from '@/types/admin'
 
 interface QueueCreatePanelProps {
   draft: QueueDraft
+  groups: AdminGroup[]
+  printers: AdminPrinter[]
   onCancel: () => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   setDraft: React.Dispatch<React.SetStateAction<QueueDraft>>
@@ -13,14 +14,13 @@ interface QueueCreatePanelProps {
 
 export function QueueCreatePanel({
   draft,
+  groups,
   onCancel,
   onSubmit,
+  printers,
   setDraft,
   toggleDraftSelection,
 }: QueueCreatePanelProps) {
-  const printers = listQueuePrinters()
-  const groups = listQueueGroups()
-
   return (
     <section className="ui-panel mb-5 overflow-hidden">
       <div className="border-b border-line bg-accent-100/35 px-5 py-4">
@@ -33,7 +33,6 @@ export function QueueCreatePanel({
           <div><div className="text-sm font-medium text-ink-950">Queue identity</div></div>
           <div className="grid gap-4 lg:grid-cols-2">
             <label><div className="ui-heading">Queue name</div><input className="ui-input mt-2" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Student Duplex Queue" /></label>
-            <label><div className="ui-heading">Hosted on</div><input className="ui-input mt-2" value={draft.hostedOn} onChange={(event) => setDraft((current) => ({ ...current, hostedOn: event.target.value }))} /></label>
             <label>
               <div className="ui-heading">Audience</div>
               <select className="ui-select mt-2 w-full" value={draft.audience} onChange={(event) => setDraft((current) => ({ ...current, audience: event.target.value as QueueAccessScope }))}>
@@ -46,7 +45,6 @@ export function QueueCreatePanel({
                 <option>Secure Release</option><option>Immediate</option><option>Kiosk Release</option>
               </select>
             </label>
-            <label><div className="ui-heading">Department</div><input className="ui-input mt-2" value={draft.department} onChange={(event) => setDraft((current) => ({ ...current, department: event.target.value }))} /></label>
             <label className="flex items-center gap-3 pt-7"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} /><span className="text-sm text-ink-950">Queue enabled on creation</span></label>
             <label className="lg:col-span-2"><div className="ui-heading">Description</div><textarea className="ui-textarea mt-2" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Describe queue purpose, restriction scope, and routing assumptions." /></label>
             <div className="rounded-none border border-line bg-mist-50 px-4 py-4 text-sm text-slate-600 lg:col-span-2">

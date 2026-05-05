@@ -2,8 +2,9 @@ import { Router } from 'express'
 import { alertsRouter } from './alerts.router.js'
 import { authRouter } from './auth.router.js'
 import { dashboardRouter } from './dashboard.router.js'
-import { departmentsRouter } from './departments.router.js'
+import { groupsRouter } from './groups.router.js'
 import { jobsRouter } from './jobs.router.js'
+import { logsRouter } from './logs.router.js'
 import { portalRouter } from './portal.router.js'
 import { printersRouter } from './printers.router.js'
 import { queuesRouter } from './queues.router.js'
@@ -14,8 +15,9 @@ const router = Router()
 router.use('/alerts', alertsRouter)
 router.use('/auth', authRouter)
 router.use('/dashboard', dashboardRouter)
-router.use('/departments', departmentsRouter)
+router.use('/groups', groupsRouter)
 router.use('/jobs', jobsRouter)
+router.use('/logs', logsRouter)
 router.use('/portal', portalRouter)
 router.use('/printers', printersRouter)
 router.use('/queues', queuesRouter)

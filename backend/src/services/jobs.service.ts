@@ -89,6 +89,24 @@ export async function submitJob(user: AuthenticatedUser, input: SubmitJobInput) 
         }),
       ],
     )
+    await client.query(
+      `INSERT INTO print_logs (
+         print_job_id,
+         user_id,
+         user_name,
+         printer_id,
+         device_name,
+         printed_at,
+         pages,
+         cost,
+         status
+       )
+       SELECT $1, users.id, COALESCE(users.display_name, users.username), NULL, print_queues.name, NOW(), $2, $3, 'held'
+       FROM users
+       CROSS JOIN print_queues
+       WHERE users.id = $4 AND print_queues.id = $5`,
+      [jobId, totalPages, estimatedCost, user.id, queue.internal_id],
+    )
 
     return String(job.rows[0].job_uuid)
   })
@@ -220,6 +238,21 @@ export async function releaseJob(id: string, user: AuthenticatedUser) {
          VALUES ($1, $2, 'released', 'api', 'Job submitted to printer connector.', $3)`,
         [job.id, user.id, JSON.stringify(delivery)],
       )
+      await client.query(
+        `UPDATE print_logs
+         SET printer_id = $1,
+             device_name = $2,
+             printed_at = NOW(),
+             status = $3,
+             updated_at = NOW()
+         WHERE print_job_id = $4`,
+        [
+          job.printer_id,
+          String(job.printer_name),
+          nextStatus === 'queued' ? 'queued' : 'printing',
+          job.id,
+        ],
+      )
     })
 
     return getJobById(id, user)
@@ -233,6 +266,12 @@ export async function releaseJob(id: string, user: AuthenticatedUser) {
       `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message)
        VALUES ($1, $2, 'failed', 'api', $3)`,
       [job.id, user.id, message],
+    )
+    await query(
+      `UPDATE print_logs
+       SET status = 'failed', updated_at = NOW()
+       WHERE print_job_id = $1`,
+      [job.id],
     )
     throw error
   }
@@ -253,6 +292,12 @@ export async function cancelJob(id: string, user: AuthenticatedUser) {
     `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message)
      VALUES ($1, $2, 'cancelled', 'api', 'Job cancelled before release.')`,
     [job.id, user.id],
+  )
+  await query(
+    `UPDATE print_logs
+     SET status = 'cancelled', updated_at = NOW()
+     WHERE print_job_id = $1`,
+    [job.id],
   )
 
   return getJobById(id, user)

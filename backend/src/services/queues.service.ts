@@ -22,6 +22,7 @@ interface QueueInput {
   releaseMode?: 'secure_release' | 'immediate'
   retentionHours?: number
   printerIds?: string[]
+  allowedGroups?: string[]
   costPerPage?: number
 }
 
@@ -51,12 +52,17 @@ export async function listQueues(filters: QueueFilters): Promise<PaginatedResult
         q.*,
         COALESCE(pr.cost_per_page, 0) AS cost_per_page,
         COUNT(DISTINCT qp.printer_id) FILTER (WHERE qp.is_enabled = TRUE) AS printer_count,
+        COALESCE(array_agg(DISTINCT p.printer_uuid::text) FILTER (WHERE p.id IS NOT NULL AND qp.is_enabled = TRUE), '{}') AS printer_ids,
+        COALESCE(array_agg(DISTINCT qar.rule_value) FILTER (WHERE qar.rule_type = 'ad_group'), '{}') AS allowed_groups,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing')) AS pending_jobs,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS held_jobs,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today,
+        MAX(COALESCE(pj.updated_at, q.updated_at)) AS last_activity_at
      FROM print_queues q
      LEFT JOIN pricing_rules pr ON pr.queue_id = q.id AND pr.is_active = TRUE
      LEFT JOIN queue_printers qp ON qp.queue_id = q.id
+     LEFT JOIN printers p ON p.id = qp.printer_id
+     LEFT JOIN queue_access_rules qar ON qar.queue_id = q.id
      LEFT JOIN print_jobs pj ON pj.queue_id = q.id
      WHERE ${where}
      GROUP BY q.id, pr.cost_per_page
@@ -80,14 +86,15 @@ export async function listEligibleQueuesForUser(userId: number) {
     `WITH user_context AS (
         SELECT
           u.id,
-          d.id AS department_id,
-          COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles
+          COALESCE(array_agg(DISTINCT r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles,
+          COALESCE(array_agg(DISTINCT ag.name) FILTER (WHERE ag.name IS NOT NULL), '{}') AS ad_groups
         FROM users u
-        LEFT JOIN departments d ON d.id = u.department_id
         LEFT JOIN user_roles ur ON ur.user_id = u.id
         LEFT JOIN roles r ON r.id = ur.role_id
+        LEFT JOIN user_ad_group_memberships uagm ON uagm.user_id = u.id
+        LEFT JOIN ad_groups ag ON ag.id = uagm.group_id
         WHERE u.id = $1
-        GROUP BY u.id, d.id
+        GROUP BY u.id
       )
       SELECT
         q.*,
@@ -106,7 +113,7 @@ export async function listEligibleQueuesForUser(userId: number) {
           WHERE qar.queue_id = q.id
           AND (
             (qar.rule_type = 'role' AND qar.rule_value = ANY(uc.roles))
-            OR (qar.rule_type = 'department' AND qar.rule_value = uc.department_id::text)
+            OR (qar.rule_type = 'ad_group' AND qar.rule_value = ANY(uc.ad_groups))
             OR (qar.rule_type = 'user' AND qar.rule_value = uc.id::text)
           )
         )
@@ -135,12 +142,17 @@ export async function getQueueById(id: string) {
         q.*,
         COALESCE(pr.cost_per_page, 0) AS cost_per_page,
         COUNT(DISTINCT qp.printer_id) FILTER (WHERE qp.is_enabled = TRUE) AS printer_count,
+        COALESCE(array_agg(DISTINCT p.printer_uuid::text) FILTER (WHERE p.id IS NOT NULL AND qp.is_enabled = TRUE), '{}') AS printer_ids,
+        COALESCE(array_agg(DISTINCT qar.rule_value) FILTER (WHERE qar.rule_type = 'ad_group'), '{}') AS allowed_groups,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing')) AS pending_jobs,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS held_jobs,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today,
+        MAX(COALESCE(pj.updated_at, q.updated_at)) AS last_activity_at
      FROM print_queues q
      LEFT JOIN pricing_rules pr ON pr.queue_id = q.id AND pr.is_active = TRUE
      LEFT JOIN queue_printers qp ON qp.queue_id = q.id
+     LEFT JOIN printers p ON p.id = qp.printer_id
+     LEFT JOIN queue_access_rules qar ON qar.queue_id = q.id
      LEFT JOIN print_jobs pj ON pj.queue_id = q.id
      WHERE q.queue_uuid::text = $1 OR q.id::text = $1
      GROUP BY q.id, pr.cost_per_page`,
@@ -161,6 +173,8 @@ export async function getQueueById(id: string) {
     [queue.internal_id],
   )
 
+  const queueLogs = await getQueueLogs(queue.internal_id, queue.id)
+
   return {
     ...queue,
     printers: printers.rows.map((row) => ({
@@ -172,10 +186,11 @@ export async function getQueueById(id: string) {
       is_primary: Boolean(row.is_primary),
       priority_order: Number(row.priority_order ?? 100),
     })),
+    queue_logs: queueLogs,
   }
 }
 
-export async function createQueue(input: Required<Pick<QueueInput, 'name'>> & QueueInput, createdBy: number) {
+export async function createQueue(input: Required<Pick<QueueInput, 'name'>> & QueueInput, createdBy: number, actor?: AuthenticatedUser) {
   const existing = await query('SELECT id FROM print_queues WHERE name = $1 AND status <> \'archived\'', [input.name])
   if (existing.rows.length > 0) {
     throw new ConflictError('Queue name already exists')
@@ -207,6 +222,21 @@ export async function createQueue(input: Required<Pick<QueueInput, 'name'>> & Qu
     }
 
     await replaceQueuePrinters(client, queueId, input.printerIds ?? [])
+    await replaceQueueAccessRules(client, queueId, input.allowedGroups ?? [])
+    await recordAuditLogWithClient(client, {
+      actor,
+      actionCategory: 'queue',
+      actionType: 'create_queue',
+      targetType: 'queue',
+      targetId: String(queue.rows[0].queue_uuid),
+      afterState: {
+        id: String(queue.rows[0].queue_uuid),
+        name: input.name,
+        status: input.status ?? 'active',
+        printerIds: input.printerIds ?? [],
+        allowedGroups: input.allowedGroups ?? [],
+      },
+    })
 
     return String(queue.rows[0].queue_uuid)
   })
@@ -214,7 +244,7 @@ export async function createQueue(input: Required<Pick<QueueInput, 'name'>> & Qu
   return getQueueById(queueUuid)
 }
 
-export async function updateQueue(id: string, input: QueueInput) {
+export async function updateQueue(id: string, input: QueueInput, actor?: AuthenticatedUser) {
   const queue = await getQueueById(id)
   const fields: string[] = []
   const params: unknown[] = []
@@ -244,6 +274,10 @@ export async function updateQueue(id: string, input: QueueInput) {
       await replaceQueuePrinters(client, queue.internal_id, input.printerIds)
     }
 
+    if (input.allowedGroups !== undefined) {
+      await replaceQueueAccessRules(client, queue.internal_id, input.allowedGroups)
+    }
+
     if (input.costPerPage !== undefined) {
       await client.query(
         `INSERT INTO pricing_rules (name, queue_id, paper_type, color_mode, cost_per_page, is_active)
@@ -254,16 +288,36 @@ export async function updateQueue(id: string, input: QueueInput) {
     }
   })
 
-  return getQueueById(id)
+  const updatedQueue = await getQueueById(id)
+  await recordAuditLog({
+    actor,
+    actionCategory: 'queue',
+    actionType: 'update_queue',
+    targetType: 'queue',
+    targetId: String(updatedQueue.id),
+    beforeState: queue,
+    afterState: updatedQueue,
+  })
+
+  return updatedQueue
 }
 
-export async function deleteQueue(id: string) {
+export async function deleteQueue(id: string, actor?: AuthenticatedUser) {
   const queue = await getQueueById(id)
   if (queue.pending_jobs > 0) {
     throw new ConflictError('Cannot delete queue with pending jobs')
   }
 
   await query('UPDATE print_queues SET status = \'archived\', updated_at = NOW() WHERE id = $1', [queue.internal_id])
+  await recordAuditLog({
+    actor,
+    actionCategory: 'queue',
+    actionType: 'delete_queue',
+    targetType: 'queue',
+    targetId: String(queue.id),
+    beforeState: queue,
+    afterState: { ...queue, status: 'archived' },
+  })
 }
 
 async function replaceQueuePrinters(client: { query: (text: string, values?: unknown[]) => Promise<unknown> }, queueId: number, printerIds: string[]) {
@@ -299,11 +353,93 @@ function toQueue(row: Record<string, unknown>) {
     retention_hours: Number(row.retention_hours ?? 24),
     cost_per_page: Number(row.cost_per_page ?? 0),
     printer_count: Number(row.printer_count ?? 0),
+    printer_ids: Array.isArray(row.printer_ids) ? row.printer_ids.map(String) : [],
+    allowed_groups: Array.isArray(row.allowed_groups) ? row.allowed_groups.map(String) : [],
     pending_jobs: Number(row.pending_jobs ?? 0),
     held_jobs: Number(row.held_jobs ?? 0),
     released_today: Number(row.released_today ?? 0),
     priority_order: Number(row.priority_order ?? 100),
+    last_activity_at: row.last_activity_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
+}
+
+async function replaceQueueAccessRules(client: { query: (text: string, values?: unknown[]) => Promise<unknown> }, queueId: number, allowedGroups: string[]) {
+  await client.query('DELETE FROM queue_access_rules WHERE queue_id = $1 AND rule_type = \'ad_group\'', [queueId])
+
+  for (const groupName of allowedGroups) {
+    await client.query(
+      `INSERT INTO queue_access_rules (queue_id, rule_type, rule_value)
+       VALUES ($1, 'ad_group', $2)
+       ON CONFLICT (queue_id, rule_type, rule_value) DO NOTHING`,
+      [queueId, groupName],
+    )
+  }
+}
+
+async function getQueueLogs(internalQueueId: number, publicQueueId: string) {
+  const result = await query<{
+    id: string
+    time: Date
+    type: string
+    state: string
+    actor: string
+    message: string
+  }>(
+    `WITH queue_events AS (
+       SELECT
+         'audit-' || audit_logs.id::text AS id,
+         audit_logs.created_at AS time,
+         initcap(replace(audit_logs.action_category, '_', ' ')) AS type,
+         'Info' AS state,
+         COALESCE(actor.username, audit_logs.actor_role, 'system') AS actor,
+         initcap(replace(audit_logs.action_type, '_', ' ')) AS message
+       FROM audit_logs
+       LEFT JOIN users actor ON actor.id = audit_logs.actor_user_id
+       WHERE audit_logs.target_type = 'queue'
+         AND (audit_logs.target_id = $2 OR audit_logs.target_id = $1::text)
+
+       UNION ALL
+
+       SELECT
+         'job-' || print_job_events.id::text AS id,
+         print_job_events.created_at AS time,
+         CASE WHEN print_job_events.event_type = 'failed' THEN 'Error' ELSE 'Release' END AS type,
+         CASE WHEN print_job_events.event_type = 'failed' THEN 'Open' ELSE 'Info' END AS state,
+         COALESCE(actor.username, print_job_events.event_source, 'system') AS actor,
+         COALESCE(print_job_events.message, initcap(print_job_events.event_type)) AS message
+       FROM print_job_events
+       JOIN print_jobs ON print_jobs.id = print_job_events.print_job_id
+       LEFT JOIN users actor ON actor.id = print_job_events.actor_user_id
+       WHERE print_jobs.queue_id = $1
+
+       UNION ALL
+
+       SELECT
+         'device-' || device_errors.id::text AS id,
+         device_errors.detected_at AS time,
+         'Error' AS type,
+         CASE WHEN device_errors.status = 'resolved' THEN 'Resolved' ELSE 'Open' END AS state,
+         COALESCE(resolver.username, 'system') AS actor,
+         device_errors.title AS message
+       FROM device_errors
+       LEFT JOIN users resolver ON resolver.id = device_errors.resolved_by
+       WHERE device_errors.queue_id = $1
+     )
+     SELECT id, time, type, state, actor, message
+     FROM queue_events
+     ORDER BY time DESC
+     LIMIT 50`,
+    [internalQueueId, publicQueueId],
+  )
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    time: row.time.toISOString(),
+    type: row.type,
+    state: row.state,
+    actor: row.actor,
+    message: row.message,
+  }))
 }

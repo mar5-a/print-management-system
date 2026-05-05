@@ -1,15 +1,18 @@
 import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { PageHeader } from '@/components/composite/page-header'
 import { SectionTabs } from '@/components/composite/section-tabs'
+import { listGroups } from '@/features/admin/groups/api'
+import { listPrinters } from '@/features/admin/printers/api'
 import { isQueueDeleteBlocked } from '@/lib/status'
-import { getQueueByIdOrUndefined, listQueuePrinters, removeQueue, saveQueue } from './api'
+import { getQueueByIdOrUndefined, removeQueue, saveQueue, type QueueMutationInput } from './api'
 import { QueueAssignmentsPanel } from './components/queue-assignments-panel'
 import { QueueConfigurationPanel } from './components/queue-configuration-panel'
 import { QueueDeleteReview } from './components/queue-delete-review'
 import { QueueLogPanel } from './components/queue-log-panel'
-import type { AdminQueue } from '@/types/admin'
+import type { AdminGroup, AdminPrinter, AdminQueue } from '@/types/admin'
 
 export function QueueDetailScreen() {
   const navigate = useNavigate()
@@ -25,10 +28,31 @@ export function QueueDetailScreen() {
     return <Navigate to="/admin/queues" replace />
   }
 
-  return <QueueDetailView key={queue.id} queue={queue} onBack={() => navigate('/admin/queues')} />
+  return (
+    <QueueDetailView
+      key={queue.id}
+      groups={groups}
+      printers={printers}
+      queue={queue}
+      onBack={() => navigate('/admin/queues')}
+      onQueueChange={setQueue}
+    />
+  )
 }
 
-function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => void }) {
+function QueueDetailView({
+  groups,
+  onBack,
+  onQueueChange,
+  printers,
+  queue,
+}: {
+  groups: AdminGroup[]
+  onBack: () => void
+  onQueueChange: (queue: AdminQueue) => void
+  printers: AdminPrinter[]
+  queue: AdminQueue
+}) {
   const [activeTab, setActiveTab] = useState('Policy')
   const [form, setForm] = useState(queue)
   const [saveMessage, setSaveMessage] = useState('')
@@ -69,7 +93,7 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
     }).catch(() => setSaveMessage('Failed to save changes.'))
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!canDelete) {
       setDeleteReviewOpen(true)
       return
@@ -82,7 +106,7 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
       <PageHeader
         eyebrow="Queues"
         title={`Queue details: ${form.name}`}
-        description={`${form.audience} access on ${form.hostedOn}`}
+        description={`${form.audience} access / ${form.releaseMode}`}
         meta={
           <>
             <button type="button" className="ui-button-secondary" onClick={onBack}>
@@ -105,8 +129,22 @@ function QueueDetailView({ queue, onBack }: { queue: AdminQueue; onBack: () => v
       <SectionTabs tabs={['Policy', 'Assignments', 'Activity']} activeTab={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'Policy' ? <QueueConfigurationPanel form={form} onApply={handleApply} onReset={resetForm} saveMessage={saveMessage} updateForm={updateForm} /> : null}
-      {activeTab === 'Assignments' ? <QueueAssignmentsPanel assignedPrinters={assignedPrinters} form={form} onApply={handleApply} onReviewLog={() => setActiveTab('Activity')} toggleAssignment={toggleAssignment} /> : null}
+      {activeTab === 'Assignments' ? <QueueAssignmentsPanel assignedPrinters={assignedPrinters} form={form} groups={groups} onApply={handleApply} onReviewLog={() => setActiveTab('Activity')} printers={printers} toggleAssignment={toggleAssignment} /> : null}
       {activeTab === 'Activity' ? <QueueLogPanel canDelete={canDelete} form={form} openLogCount={openLogCount} /> : null}
     </div>
   )
+}
+
+function toQueueMutationInput(queue: AdminQueue): QueueMutationInput {
+  return {
+    name: queue.name,
+    description: queue.description,
+    status: queue.enabled ? queue.status : 'Offline',
+    releaseMode: queue.releaseMode,
+    audience: queue.audience,
+    retentionHours: queue.autoDeleteAfterHours,
+    costPerPage: queue.costPerPage,
+    printerIds: queue.printerIds,
+    allowedGroups: queue.allowedGroups,
+  }
 }

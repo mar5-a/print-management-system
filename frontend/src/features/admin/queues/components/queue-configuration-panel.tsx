@@ -22,10 +22,8 @@ export function QueueConfigurationPanel({
     <DetailPanel>
       <DetailSection title="Identity">
         <label><div className="ui-detail-label">Queue name</div><input className="ui-input mt-2" value={form.name} onChange={(event) => updateForm('name', event.target.value)} /></label>
-        <label><div className="ui-detail-label">Hosted on</div><input className="ui-input mt-2" value={form.hostedOn} onChange={(event) => updateForm('hostedOn', event.target.value)} /></label>
-        <label><div className="ui-detail-label">Status</div><select className="ui-select mt-2 w-full" value={form.status} onChange={(event) => updateForm('status', event.target.value as AdminQueue['status'])}><option>Online</option><option>Offline</option><option>Maintenance</option></select></label>
+        <label><div className="ui-detail-label">Status</div><select className="ui-select mt-2 w-full" value={form.status} onChange={(event) => updateForm('status', event.target.value as AdminQueue['status'])}><option>Online</option><option>Offline</option></select></label>
         <label><div className="ui-detail-label">Audience</div><select className="ui-select mt-2 w-full" value={form.audience} onChange={(event) => updateForm('audience', event.target.value as QueueAccessScope)}><option>Students</option><option>Staff</option><option>Faculty</option><option>Mixed</option></select></label>
-        <label><div className="ui-detail-label">Department</div><input className="ui-input mt-2" value={form.department} onChange={(event) => updateForm('department', event.target.value)} /></label>
         <label className="ui-checkbox-line pt-7"><input type="checkbox" checked={form.enabled} onChange={(event) => updateForm('enabled', event.target.checked)} /><span>Queue enabled for submission and held-job routing</span></label>
         <label className="xl:col-span-2"><div className="ui-detail-label">Description</div><textarea className="ui-textarea mt-2" value={form.description} onChange={(event) => updateForm('description', event.target.value)} /></label>
       </DetailSection>

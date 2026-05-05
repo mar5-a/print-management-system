@@ -51,3 +51,85 @@ export async function getDashboardSnapshot() {
     },
   }
 }
+
+export async function listRecentPrintRows(filters: PrintLogFilters): Promise<PrintLogPage> {
+  const searchParams = new URLSearchParams({
+    page: String(filters.page),
+    limit: String(filters.limit),
+  })
+
+  if (filters.search.trim()) {
+    searchParams.set('search', filters.search.trim())
+  }
+
+  if (filters.status !== 'all') {
+    searchParams.set('status', filters.status)
+  }
+
+  if (filters.device !== 'all') {
+    searchParams.set('device', filters.device)
+  }
+
+  const response = await api.get<ApiData<BackendPrintLogPage>>(`/dashboard/print-logs?${searchParams.toString()}`)
+
+  return {
+    ...response.data,
+    rows: response.data.rows.map((row) => ({
+      id: row.id,
+      time: formatPrintLogTime(row.date),
+      user: row.user,
+      device: row.device,
+      pages: row.pages,
+      cost: row.cost,
+      status: formatStatus(row.status),
+    })),
+    statusOptions: response.data.statusOptions.map((option) => ({
+      value: option,
+      label: formatStatus(option),
+    })),
+    deviceOptions: response.data.deviceOptions.map((option) => ({
+      value: option,
+      label: option,
+    })),
+  }
+}
+
+export async function getPrintActivity(range: PrintActivityRange): Promise<PrintActivitySnapshot> {
+  const response = await api.get<ApiData<BackendPrintActivitySnapshot>>(`/dashboard/print-activity?range=${range}`)
+
+  return {
+    range: response.data.range,
+    points: response.data.points,
+    totalPages: response.data.totalPages,
+  }
+}
+
+function formatPrintLogTime(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const month = months[date.getMonth()]
+  const day = date.getDate()
+  const year = date.getFullYear()
+  const rawHours = date.getHours()
+  const hours = rawHours % 12 || 12
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const period = rawHours >= 12 ? 'PM' : 'AM'
+
+  return `${month} ${day}, ${year} ${hours}:${minutes} ${period}`
+}
+
+function formatStatus(status: string) {
+  return status
+    .split('_')
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(' ')
+}
+
+function formatPrinterStatus(status: string): DashboardPrinterStatus['status'] {
+  return formatStatus(status) as DashboardPrinterStatus['status']
+}

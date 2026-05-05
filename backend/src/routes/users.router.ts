@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { validateBody, validateQuery } from '../middleware/validate.js'
+import { ForbiddenError } from '../lib/errors.js'
 import { created, noContent, ok, paginated } from '../lib/response.js'
 import * as usersService from '../services/users.service.js'
 
@@ -11,7 +12,8 @@ router.use(authenticate)
 const listSchema = z.object({
   search: z.string().optional(),
   status: z.enum(['active', 'suspended']).optional(),
-  role: z.enum(['admin', 'technician', 'standard_user']).optional(),
+  role: z.enum(['admin', 'technician', 'standard_user', 'faculty']).optional(),
+  groupName: z.string().min(1).max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
@@ -23,7 +25,8 @@ const createSchema = z.object({
   universityId: z.string().max(64).optional(),
   password: z.string().min(6),
   role: z.enum(['admin', 'technician', 'standard_user']).default('standard_user'),
-  departmentId: z.coerce.number().int().positive().optional(),
+  groupName: z.string().min(1).max(120).optional(),
+  isSuspended: z.boolean().optional(),
   allocatedPages: z.number().int().min(0).optional(),
 })
 
@@ -31,7 +34,8 @@ const updateSchema = z.object({
   email: z.string().email().optional(),
   displayName: z.string().min(1).max(255).optional(),
   role: z.enum(['admin', 'technician', 'standard_user']).optional(),
-  departmentId: z.coerce.number().int().positive().nullable().optional(),
+  groupName: z.string().min(1).max(120).optional(),
+  isSuspended: z.boolean().optional(),
   allocatedPages: z.number().int().min(0).optional(),
 })
 
@@ -40,8 +44,14 @@ router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema), a
   paginated(res, await usersService.listUsers(filters))
 })
 
-router.post('/', requireRole('admin'), validateBody(createSchema), async (req, res) => {
-  created(res, await usersService.createUser(req.body as z.infer<typeof createSchema>))
+router.post('/', requireRole('admin', 'technician'), validateBody(createSchema), async (req, res) => {
+  const input = req.body as z.infer<typeof createSchema>
+  usersService.assertTechnicianCanCreateRole(req.user!.roles, input.role)
+  created(res, await usersService.createUser(input, req.user))
+})
+
+router.get('/groups', requireRole('admin', 'technician'), async (_req, res) => {
+  ok(res, await usersService.listUserGroups())
 })
 
 router.get('/:id', async (req, res) => {
@@ -49,29 +59,44 @@ router.get('/:id', async (req, res) => {
   ok(res, await usersService.getUserByPublicId(id))
 })
 
-router.patch('/:id', requireRole('admin'), validateBody(updateSchema), async (req, res) => {
-  ok(res, await usersService.updateUser(String(req.params.id), req.body as z.infer<typeof updateSchema>))
+router.patch('/:id', requireRole('admin', 'technician'), validateBody(updateSchema), async (req, res) => {
+  const input = req.body as z.infer<typeof updateSchema>
+  await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
+  usersService.assertTechnicianCanAssignRole(req.user!.roles, input.role)
+  ok(res, await usersService.updateUser(String(req.params.id), input, req.user))
 })
 
 router.post('/:id/suspend', requireRole('admin', 'technician'), async (req, res) => {
   await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
-  await usersService.suspendUser(String(req.params.id))
+  await usersService.suspendUser(String(req.params.id), req.user)
   ok(res, { message: 'User suspended' })
 })
 
 router.post('/:id/reactivate', requireRole('admin', 'technician'), async (req, res) => {
   await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
-  await usersService.reactivateUser(String(req.params.id))
+  await usersService.reactivateUser(String(req.params.id), req.user)
   ok(res, { message: 'User reactivated' })
 })
 
 router.patch('/:id/quota', requireRole('admin', 'technician'), validateBody(z.object({ allocatedPages: z.number().int().min(0) })), async (req, res) => {
   await usersService.assertTechnicianCanManageTarget(req.user!.roles, String(req.params.id))
-  ok(res, await usersService.updateUser(String(req.params.id), { allocatedPages: req.body.allocatedPages }))
+  ok(res, await usersService.updateUser(String(req.params.id), { allocatedPages: req.body.allocatedPages }, req.user))
 })
 
 router.delete('/:id', requireRole('admin'), async (req, res) => {
-  await usersService.deleteUser(String(req.params.id))
+  const targetId = String(req.params.id)
+  const targetInternalId = await usersService.getUserInternalId(targetId)
+
+  if (targetInternalId === req.user!.id) {
+    throw new ForbiddenError('You cannot delete your own account')
+  }
+
+  const target = await usersService.getUserByPublicId(targetId)
+  if (target.role === 'admin') {
+    throw new ForbiddenError('Admin accounts cannot be deleted')
+  }
+
+  await usersService.deleteUser(targetId)
   noContent(res)
 })
 
