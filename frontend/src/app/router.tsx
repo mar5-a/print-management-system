@@ -45,14 +45,10 @@ export function AppRouter() {
         <Route path="users/:userId" element={<UserDetailScreen />} />
         <Route path="groups" element={<GroupsScreen />} />
         <Route path="groups/:groupId" element={<GroupDetailScreen />} />
-        {`<Route path="accounts" element={<AccountsScreen />} />`}
         <Route path="printers" element={<PrintersScreen />} />
         <Route path="printers/:printerId" element={<PrinterDetailScreen />} />
         <Route path="queues" element={<QueuesScreen />} />
         <Route path="queues/:queueId" element={<QueueDetailScreen />} />
-        {`<Route path="devices" element={<DevicesScreen />} />
-        <Route path="reports" element={<ReportsScreen />} />
-        <Route path="options" element={<OptionsScreen />} />`}
         <Route path="logs" element={<LogsScreen />} />
         <Route path="about" element={<AboutScreen />} />
       </Route>

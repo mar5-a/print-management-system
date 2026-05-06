@@ -1,5 +1,4 @@
 import { api } from '@/lib/api'
-import { listAdminQueues } from '@/mocks/admin-store'
 import type { AdminPrinter } from '@/types/admin'
 
 interface BackendPrinter {
@@ -120,8 +119,9 @@ export async function deletePrinter(printerId: string) {
   await api.delete<void>(`/printers/${printerId}`)
 }
 
-export function listPrinterQueueNames() {
-  return ['Unassigned', ...new Set(listAdminQueues().map((queue) => queue.name))]
+export async function listPrinterQueueNames(): Promise<string[]> {
+  const response = await api.get<{ data: { name: string }[] }>('/queues?limit=200')
+  return ['Unassigned', ...new Set(response.data.map((q) => q.name))]
 }
 
 function mapStatus(status: string): AdminPrinter['status'] {
