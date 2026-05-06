@@ -1,18 +1,16 @@
 import fs from 'node:fs/promises'
 import crypto from 'node:crypto'
+import { PDFDocument } from 'pdf-lib'
 import { query, transaction } from '../db/pool.js'
 import { ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
+import { decryptDevicePin, encryptDevicePin, generateDevicePin } from './job-pin-secrets.js'
 import { PrintDeliveryService } from './print-delivery-service.js'
 import { resolveDefaultQueueForUser } from './queues.service.js'
 import type { AuthenticatedUser, PaginatedResult } from '../types/api.js'
 
 interface SubmitJobInput {
   file: Express.Multer.File
-  pageCount: number
   copyCount: number
-  colorMode: 'bw' | 'color'
-  duplex: boolean
-  paperType: string
 }
 
 interface ListJobFilters {
@@ -23,16 +21,17 @@ interface ListJobFilters {
   limit?: number
 }
 
-const activeHeldStatuses = ['held', 'queued', 'printing', 'blocked']
+const reservedQuotaStatuses = ['held', 'submitting_to_device_storage', 'blocked']
 
 export async function submitJob(user: AuthenticatedUser, input: SubmitJobInput) {
   const queue = await resolveDefaultQueueForUser(user.id)
-  const totalPages = input.pageCount * input.copyCount
+  const pageCount = await inferPdfPageCount(input.file.path)
+  const totalPages = pageCount * input.copyCount
   await assertQuotaAvailable(user.id, totalPages)
 
   const expiresAt = new Date(Date.now() + Number(queue.retention_hours) * 60 * 60 * 1000)
   const fileHash = await hashFile(input.file.path)
-  const estimatedCost = await estimateCost(Number(queue.internal_id), input.paperType, input.colorMode, totalPages)
+  const estimatedCost = await estimateCost(Number(queue.internal_id), 'standard', 'bw', totalPages)
 
   const jobUuid = await transaction(async (client) => {
     const job = await client.query<{ id: number; job_uuid: string }>(
@@ -40,16 +39,13 @@ export async function submitJob(user: AuthenticatedUser, input: SubmitJobInput) 
          user_id, queue_id, source_channel, page_count, page_count_source, copy_count,
          color_mode, duplex, paper_type, estimated_cost, status, expires_at
        )
-       VALUES ($1, $2, 'web_upload', $3, 'user_estimate', $4, $5, $6, $7, $8, 'held', $9)
+       VALUES ($1, $2, 'web_upload', $3, 'pdf_inferred', $4, 'bw', false, 'standard', $5, 'held', $6)
        RETURNING id, job_uuid`,
       [
         user.id,
         queue.internal_id,
-        input.pageCount,
+        pageCount,
         input.copyCount,
-        input.colorMode,
-        input.duplex,
-        input.paperType,
         estimatedCost,
         expiresAt,
       ],
@@ -79,6 +75,9 @@ export async function submitJob(user: AuthenticatedUser, input: SubmitJobInput) 
         JSON.stringify({
           originalFileName: input.file.originalname,
           queueId: queue.id,
+          pageCount,
+          pageCountSource: 'pdf_inferred',
+          copyCount: input.copyCount,
           totalPages,
         }),
       ],
@@ -186,14 +185,61 @@ export async function getJobById(id: string, user: AuthenticatedUser) {
   return toJob(job)
 }
 
-export async function releaseJob(id: string, user: AuthenticatedUser) {
+export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
   const job = await getReleaseCandidate(id, user)
   const deliveryService = new PrintDeliveryService()
+  const pin = generateDevicePin()
+  const deviceUsername = buildDeviceUsername(job)
+  const deviceJobName = buildDeviceJobName(job)
+  const encryptedPin = encryptDevicePin(pin)
+  let sentToDeviceStorage = false
+  let sentConnectorJobId: string | null = null
+
+  // Temporary safety log for the current printer-panel spike. Remove or gate before production use.
+  console.warn('TEMP DEVICE PIN GENERATED', {
+    jobId: String(job.job_uuid ?? id),
+    deviceUsername,
+    deviceJobName,
+    pin,
+  })
 
   try {
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE print_jobs
+         SET status = 'submitting_to_device_storage',
+             release_channel = 'web',
+             device_storage_username = $1::text,
+             device_storage_job_name = $2::text,
+             device_storage_pin_secret = $3::text,
+             updated_at = NOW()
+         WHERE id = $4::bigint`,
+        [deviceUsername, deviceJobName, encryptedPin, job.id],
+      )
+      await client.query(
+        `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message, metadata)
+         VALUES ($1::bigint, $2::bigint, 'device_storage_prepared', 'api', 'Device storage PIN and printer metadata prepared before connector submission.', $3::jsonb)`,
+        [
+          job.id,
+          user.id,
+          JSON.stringify({
+            username: deviceUsername,
+            jobName: deviceJobName,
+            printerId: job.printer_id,
+          }),
+        ],
+      )
+    })
+
     const delivery = await deliveryService.deliverPdf({
       uploadedPath: String(job.stored_file_path),
       originalFileName: String(job.original_file_name ?? 'print-job.pdf'),
+      copyCount: Number(job.copy_count),
+      deviceStorage: {
+        username: deviceUsername,
+        jobName: deviceJobName,
+        pin,
+      },
       printer: {
         connector_type: String(job.connector_type),
         connector_target: job.connector_target ? String(job.connector_target) : null,
@@ -201,16 +247,42 @@ export async function releaseJob(id: string, user: AuthenticatedUser) {
         name: String(job.printer_name),
       },
     })
+    sentToDeviceStorage = delivery.channel === 'hp_pjl_stored_job'
+    sentConnectorJobId = readConnectorJobId(delivery.details)
 
-    const nextStatus = delivery.channel === 'windows_queue' ? 'queued' : 'sent_to_printer'
+    const nextStatus = delivery.channel === 'hp_pjl_stored_job'
+      ? 'stored_on_device'
+      : delivery.channel === 'windows_queue' ? 'queued' : 'sent_to_printer'
     const totalPages = Number(job.page_count) * Number(job.copy_count)
+    const eventType = delivery.channel === 'hp_pjl_stored_job' ? 'submitted_to_device_storage' : 'released'
+    const eventMessage = delivery.channel === 'hp_pjl_stored_job'
+      ? 'Job submitted to HP device memory for PIN release.'
+      : 'Job submitted to printer connector.'
 
     await transaction(async (client) => {
       await client.query(
         `UPDATE print_jobs
-         SET status = $1, printer_id = $2, release_channel = 'web', released_at = NOW(), final_cost = estimated_cost
-         WHERE id = $3`,
-        [nextStatus, job.printer_id, job.id],
+         SET status = $1::text,
+             printer_id = $2::bigint,
+             release_channel = 'web',
+             released_at = NOW(),
+             final_cost = estimated_cost,
+             device_storage_username = $3::text,
+             device_storage_job_name = $4::text,
+             device_storage_submitted_at = CASE WHEN $1::text = 'stored_on_device' THEN NOW() ELSE device_storage_submitted_at END,
+             device_storage_pin_secret = $5::text,
+             device_storage_connector_job_id = $6::text,
+             updated_at = NOW()
+         WHERE id = $7::bigint`,
+        [
+          nextStatus,
+          job.printer_id,
+          deviceUsername,
+          deviceJobName,
+          encryptedPin,
+          sentConnectorJobId,
+          job.id,
+        ],
       )
 
       if (delivery.channel === 'raw_socket' && 'postScriptPath' in delivery.details) {
@@ -229,8 +301,8 @@ export async function releaseJob(id: string, user: AuthenticatedUser) {
       )
       await client.query(
         `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message, metadata)
-         VALUES ($1, $2, 'released', 'api', 'Job submitted to printer connector.', $3)`,
-        [job.id, user.id, JSON.stringify(delivery)],
+         VALUES ($1::bigint, $2::bigint, $3::text, 'api', $4::text, $5::jsonb)`,
+        [job.id, user.id, eventType, eventMessage, JSON.stringify(redactDeliveryMetadata(delivery))],
       )
       await client.query(
         `UPDATE print_logs
@@ -239,36 +311,125 @@ export async function releaseJob(id: string, user: AuthenticatedUser) {
              printed_at = NOW(),
              status = $3,
              updated_at = NOW()
-         WHERE print_job_id = $4`,
+         WHERE print_job_id = $4::bigint`,
         [
           job.printer_id,
           String(job.printer_name),
-          nextStatus === 'queued' ? 'queued' : 'printing',
+          nextStatus === 'stored_on_device' ? 'stored_on_device' : nextStatus === 'queued' ? 'queued' : 'printing',
           job.id,
         ],
       )
     })
 
-    return getJobById(id, user)
+    const storedJob = await getJobById(id, user)
+
+    if (nextStatus === 'stored_on_device') {
+      return {
+        job: storedJob,
+        deviceRelease: buildDeviceReleasePayload(deviceUsername, deviceJobName, pin),
+      }
+    }
+
+    return {
+      job: storedJob,
+      deviceRelease: null,
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Print connector failed'
+
+    if (sentToDeviceStorage) {
+      await query(
+        `UPDATE print_jobs
+         SET status = 'stored_on_device',
+             printer_id = $1::bigint,
+             release_channel = 'web',
+             released_at = COALESCE(released_at, NOW()),
+             final_cost = estimated_cost,
+             device_storage_username = $2::text,
+             device_storage_job_name = $3::text,
+             device_storage_submitted_at = COALESCE(device_storage_submitted_at, NOW()),
+             device_storage_pin_secret = $4::text,
+             device_storage_connector_job_id = $5::text,
+             failure_reason = NULL,
+             updated_at = NOW()
+         WHERE id = $6::bigint`,
+        [job.printer_id, deviceUsername, deviceJobName, encryptedPin, sentConnectorJobId, job.id],
+      )
+      await query(
+        `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message, metadata)
+         VALUES ($1::bigint, $2::bigint, 'submitted_to_device_storage', 'api', $3::text, $4::jsonb)`,
+        [
+          job.id,
+          user.id,
+          'Job was submitted to HP device memory; backend recovered status after a post-send update failure.',
+          JSON.stringify({ recoveredFromError: message, username: deviceUsername, jobName: deviceJobName }),
+        ],
+      )
+
+      return {
+        job: await getJobById(id, user),
+        deviceRelease: buildDeviceReleasePayload(deviceUsername, deviceJobName, pin),
+      }
+    }
+
     await query(
-      `UPDATE print_jobs SET status = 'failed', failure_reason = $1, updated_at = NOW() WHERE id = $2`,
+      `UPDATE print_jobs SET status = 'failed', failure_reason = $1::text, updated_at = NOW() WHERE id = $2::bigint`,
       [message, job.id],
     )
     await query(
       `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message)
-       VALUES ($1, $2, 'failed', 'api', $3)`,
+       VALUES ($1::bigint, $2::bigint, 'failed', 'api', $3::text)`,
       [job.id, user.id, message],
     )
     await query(
       `UPDATE print_logs
        SET status = 'failed', updated_at = NOW()
-       WHERE print_job_id = $1`,
+       WHERE print_job_id = $1::bigint`,
       [job.id],
     )
     throw error
   }
+}
+
+export async function releaseJob(id: string, user: AuthenticatedUser) {
+  const result = await storeJobOnDevice(id, user)
+  return result.job
+}
+
+export async function getDevicePin(id: string, user: AuthenticatedUser) {
+  const result = await query(
+    `SELECT *
+     FROM print_jobs
+     WHERE job_uuid::text = $1 OR id::text = $1`,
+    [id],
+  )
+  const job = result.rows[0]
+
+  if (!job) {
+    throw new NotFoundError('Job')
+  }
+
+  if (Number(job.user_id) !== user.id && !user.roles.includes('admin')) {
+    throw new ForbiddenError()
+  }
+
+  if (job.status !== 'stored_on_device') {
+    throw new ValidationError(`Job status is '${job.status}', must be 'stored_on_device' to reveal device PIN`)
+  }
+
+  if (job.expires_at && new Date(String(job.expires_at)).getTime() <= Date.now()) {
+    throw new ValidationError('Device PIN is no longer available because the job has expired')
+  }
+
+  if (!job.device_storage_pin_secret || !job.device_storage_username || !job.device_storage_job_name) {
+    throw new NotFoundError('Device PIN')
+  }
+
+  return buildDeviceReleasePayload(
+    String(job.device_storage_username),
+    String(job.device_storage_job_name),
+    decryptDevicePin(String(job.device_storage_pin_secret)),
+  )
 }
 
 export async function cancelJob(id: string, user: AuthenticatedUser) {
@@ -314,6 +475,9 @@ async function getReleaseCandidate(id: string, user: AuthenticatedUser, requireH
   const result = await query(
     `SELECT
        pj.*,
+       u.username,
+       u.university_id,
+       u.display_name,
        jf.original_file_name,
        jf.stored_file_path,
        p.id AS printer_id,
@@ -322,6 +486,7 @@ async function getReleaseCandidate(id: string, user: AuthenticatedUser, requireH
        p.connector_target,
        p.connector_options
      FROM print_jobs pj
+     JOIN users u ON u.id = pj.user_id
      JOIN job_files jf ON jf.print_job_id = pj.id AND jf.file_role = 'original'
      JOIN queue_printers qp ON qp.queue_id = pj.queue_id AND qp.is_enabled = TRUE
      JOIN printers p ON p.id = qp.printer_id AND p.status = 'online'
@@ -357,7 +522,7 @@ async function assertQuotaAvailable(userId: number, requestedPages: number) {
      LEFT JOIN print_jobs pj ON pj.user_id = uq.user_id
      WHERE uq.user_id = $1 AND uq.quota_period = 'semester'
      GROUP BY uq.user_id, uq.allocated_pages, uq.used_pages`,
-    [userId, activeHeldStatuses],
+    [userId, reservedQuotaStatuses],
   )
   const quota = result.rows[0]
 
@@ -389,9 +554,89 @@ async function estimateCost(queueId: number, paperType: string, colorMode: strin
   return Number((costPerPage * totalPages).toFixed(4))
 }
 
+async function inferPdfPageCount(filePath: string) {
+  try {
+    const pdfBytes = await fs.readFile(filePath)
+    const document = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
+    const pageCount = document.getPageCount()
+
+    if (pageCount < 1) {
+      throw new Error('PDF has no pages')
+    }
+
+    return pageCount
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'Unknown PDF parsing error'
+    throw new ValidationError(`Could not determine PDF page count: ${reason}`)
+  }
+}
+
 async function hashFile(filePath: string) {
   const buffer = await fs.readFile(filePath)
   return crypto.createHash('sha256').update(buffer).digest('hex')
+}
+
+function buildDeviceUsername(row: Record<string, unknown>) {
+  return sanitizeDeviceText('PRINTSOL_TEST', 40, 'PRINTSOL_TEST')
+}
+
+function buildDeviceJobName(row: Record<string, unknown>) {
+  const uuid = String(row.job_uuid ?? row.id)
+  const shortId = uuid.slice(0, 8).toUpperCase()
+  const originalName = row.original_file_name
+    ? String(row.original_file_name).replace(/\.[^.]+$/, '')
+    : 'JOB'
+  const safeName = sanitizeDeviceText(originalName, 28, 'JOB')
+
+  return sanitizeDeviceText(`PMS-${shortId}-${safeName}`, 60, `PMS-${shortId}`)
+}
+
+function sanitizeDeviceText(value: string, maxLength: number, fallback: string) {
+  const sanitized = value
+    .replace(/[\r\n"]/g, ' ')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
+
+  return sanitized || fallback
+}
+
+function buildDeviceReleasePayload(username: string, jobName: string, pin: string) {
+  return {
+    username,
+    jobName,
+    pin,
+    instructions: `On the printer, open Retrieve from Device Memory, select folder "${username}", select job "${jobName}", then enter PIN ${pin}.`,
+  }
+}
+
+function readConnectorJobId(details: unknown) {
+  if (details && typeof details === 'object' && 'jobId' in details) {
+    return String((details as { jobId: unknown }).jobId)
+  }
+
+  return null
+}
+
+function redactDeliveryMetadata(delivery: unknown) {
+  if (!delivery || typeof delivery !== 'object') {
+    return {}
+  }
+
+  const record = delivery as Record<string, unknown>
+  const details = record.details && typeof record.details === 'object'
+    ? { ...(record.details as Record<string, unknown>) }
+    : record.details
+
+  if (details && typeof details === 'object') {
+    delete (details as Record<string, unknown>).pin
+  }
+
+  return {
+    ...record,
+    details,
+  }
 }
 
 const jobSelectSql = `
@@ -440,5 +685,8 @@ function toJob(row: Record<string, unknown>) {
     completed_at: row.completed_at,
     expires_at: row.expires_at,
     failure_reason: row.failure_reason ? String(row.failure_reason) : null,
+    device_storage_username: row.device_storage_username ? String(row.device_storage_username) : null,
+    device_storage_job_name: row.device_storage_job_name ? String(row.device_storage_job_name) : null,
+    device_storage_submitted_at: row.device_storage_submitted_at,
   }
 }

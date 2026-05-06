@@ -97,9 +97,13 @@ export function DashboardActiveJob({
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
         <span>{job.totalPages} pages</span>
         <span>{formatUsd(job.cost)}</span>
-        <span>{job.retentionDeadline ? `Held until ${job.retentionDeadline}` : job.details}</span>
+        <span>
+          {job.retentionDeadline
+            ? `${job.status === 'Stored on printer' ? 'Stored until' : 'Held until'} ${job.retentionDeadline}`
+            : job.details}
+        </span>
       </div>
-      {job.status === 'Pending Release' ? (
+      {job.status === 'Ready to send' ? (
         <div className="mt-3">
           <button type="button" className="ui-button-secondary px-3 py-1.5" onClick={() => onCancel(job.id)}>
             Cancel pending job

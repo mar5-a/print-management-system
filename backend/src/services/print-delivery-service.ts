@@ -3,6 +3,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { config } from '../config.js'
 import { GhostscriptPdfConverter } from './ghostscript-pdf-converter.js'
+import { HpPjlStoredJobClient } from './hp-pjl-stored-job-client.js'
 import { RawSocketPrintConnector } from './raw-socket-print-connector.js'
 import { WindowsQueuePrintClient } from './windows-queue-print-client.js'
 
@@ -16,6 +17,12 @@ interface PrinterDeliveryTarget {
 interface DeliverPrintJobOptions {
   uploadedPath: string
   originalFileName: string
+  copyCount: number
+  deviceStorage?: {
+    username: string
+    jobName: string
+    pin: string
+  }
   printer: PrinterDeliveryTarget
 }
 
@@ -24,12 +31,35 @@ export class PrintDeliveryService {
     private readonly converter = new GhostscriptPdfConverter(),
     private readonly rawSocket = new RawSocketPrintConnector(),
     private readonly windowsQueue = new WindowsQueuePrintClient(),
+    private readonly hpPjlStoredJob = new HpPjlStoredJobClient(),
   ) {}
 
-  async deliverPdf({ uploadedPath, originalFileName, printer }: DeliverPrintJobOptions) {
+  async deliverPdf({ uploadedPath, originalFileName, copyCount, deviceStorage, printer }: DeliverPrintJobOptions) {
+    if (printer.connector_type === 'hp_pjl_stored_job') {
+      if (!deviceStorage) {
+        throw new Error('Device storage metadata is required for HP PJL stored jobs.')
+      }
+
+      const { host, port } = parseRawSocketTarget(printer.connector_target)
+      const result = await this.hpPjlStoredJob.storeUploadedPdf({
+        uploadedPath,
+        originalFileName,
+        copyCount,
+        printerHost: host,
+        printerPort: port,
+        ...deviceStorage,
+      })
+
+      return {
+        channel: 'hp_pjl_stored_job',
+        status: result.status,
+        details: result,
+      }
+    }
+
     if (printer.connector_type === 'windows_queue') {
       const printerName = printer.connector_target ?? String(printer.connector_options.windowsQueueTarget ?? printer.name)
-      const result = await this.windowsQueue.printUploadedPdf({ uploadedPath, originalFileName, printerName })
+      const result = await this.windowsQueue.printUploadedPdf({ uploadedPath, originalFileName, printerName, copyCount })
 
       return {
         channel: 'windows_queue',

@@ -90,9 +90,9 @@ let portalJobsData: PortalPrintJob[] = [
     duplex: true,
     paperType: 'Standard',
     cost: 2.5,
-    status: 'Pending Release',
+    status: 'Ready to send',
     retentionDeadline: '2026-04-08 08:15',
-    details: 'Held for card or credential release at Printer A1.',
+    details: 'Held by the backend and ready to send to printer memory.',
   },
   {
     id: 'JOB-P2A3B4C',
@@ -197,7 +197,7 @@ export function cancelPortalJob(jobId: string) {
   const currentProfile = getCurrentPortalProfileRecord()
   const job = portalJobsData.find((entry) => entry.id === jobId && entry.userId === currentProfile.id)
 
-  if (!job || job.status !== 'Pending Release') {
+  if (!job || job.status !== 'Ready to send') {
     return false
   }
 
@@ -214,15 +214,10 @@ export function createPortalJob(draft: PortalSubmissionDraft) {
     return undefined
   }
 
-  if (draft.colorMode === 'Color' && selectedQueue.colorMode !== 'Color') {
-    return undefined
-  }
-
   jobCounter += 1
-  const totalPages = draft.pages * draft.copies
-  const duplexFactor = draft.duplex ? 0.9 : 1
-  const colorFactor = draft.colorMode === 'Color' ? 2 : 1
-  const cost = Number((totalPages * selectedQueue.costPerPage * duplexFactor * colorFactor).toFixed(2))
+  const inferredPages = 1
+  const totalPages = inferredPages * draft.copies
+  const cost = Number((totalPages * selectedQueue.costPerPage).toFixed(2))
 
   const createdJob: PortalPrintJob = {
     id: `JOB-${jobCounter.toString(36).toUpperCase()}`,
@@ -231,16 +226,16 @@ export function createPortalJob(draft: PortalSubmissionDraft) {
     submittedAt: '2026-04-07 10:20',
     printerName: selectedQueue.printerName,
     queueName: selectedQueue.name,
-    pages: draft.pages,
+    pages: inferredPages,
     copies: draft.copies,
     totalPages,
-    colorMode: draft.colorMode,
-    duplex: draft.duplex,
-    paperType: draft.paperType,
+    colorMode: 'Black & White',
+    duplex: false,
+    paperType: 'Standard',
     cost,
-    status: 'Pending Release',
+    status: 'Ready to send',
     retentionDeadline: '2026-04-08 10:20',
-    details: `Submitted through the supplementary web portal to ${selectedQueue.name} and waiting for release at ${selectedQueue.printerName}.`,
+    details: `Submitted through the supplementary web portal to ${selectedQueue.name} and ready to send to printer memory.`,
   }
 
   portalJobsData = [createdJob, ...portalJobsData]

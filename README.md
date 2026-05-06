@@ -13,12 +13,12 @@ Implemented at a high level:
 - Admin pages for dashboard, users, groups, printers, queues, logs, and management workflows.
 - Technician pages for dashboard, users, printers, and alert handling.
 - PostgreSQL schema and migrations for users, roles, quotas, printers, queues, queue assignments, jobs, job files, job events, logs, alerts, and seeded demo data.
-- Diagnostic print delivery through raw socket printing and a Windows queue connector.
+- HP PJL stored/private job delivery through the VM connector, with Windows queue and raw socket paths kept as diagnostics/fallbacks.
 
 Still not implemented:
 
 - Active Directory login and identity sync.
-- Printer-panel secure release / real pull-print authentication.
+- Production-hardened printer-panel secure release beyond the current HP PIN-to-print spike.
 - Reliable physical print completion telemetry from printers.
 - Production cleanup for expired held jobs and stored files.
 
@@ -27,7 +27,7 @@ Still not implemented:
 - Frontend: React, TypeScript, Vite, React Router, Tailwind CSS, Radix UI primitives.
 - Backend: TypeScript, Express, `pg`, plain SQL migrations.
 - Database: PostgreSQL.
-- Print diagnostics: Ghostscript for PDF-to-PostScript conversion, raw TCP socket printing, and a Windows queue connector spike.
+- Print connector: HP PJL stored/private jobs, Windows queue fallback, and Ghostscript/raw TCP diagnostics.
 
 ## Project Structure
 
@@ -82,6 +82,8 @@ docker compose up -d postgres
 npm run db:migrate
 ```
 
+If migrations fail with `ECONNREFUSED 127.0.0.1:5432` or `ECONNREFUSED ::1:5432`, Docker/Postgres is not running. Start Docker Desktop, then rerun `docker compose up -d postgres` from `backend/`.
+
 Start the backend:
 
 ```bash
@@ -103,6 +105,15 @@ http://127.0.0.1:5173
 ```
 
 Use `127.0.0.1` instead of `localhost` if another Vite app is running locally.
+
+If the browser shows a CORS `NetworkError`, confirm the backend allows the exact frontend origin. For local dev the default backend config allows both:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+```
+
+If you override `FRONTEND_ORIGIN` in `backend/.env`, include every frontend origin you use, comma-separated.
 
 ## Development Credentials
 
@@ -138,15 +149,19 @@ Diagnostic print routes live under `/dev/*`. They are useful for hardware testin
 Normal product flow should go through the job lifecycle:
 
 ```text
-portal/backend client -> POST /api/jobs -> held DB job -> release action -> connector boundary
+portal/backend client -> POST /api/jobs -> held DB job -> store on device -> HP printer memory -> user enters PIN at printer
 ```
 
 Diagnostic paths currently available:
 
-- `/dev/print-direct`: converts PDF to PostScript and sends bytes directly to the HP printer over TCP port `9100`.
+- `/api/jobs/:id/store-on-device`: product path that sends a held job to HP device memory with a generated PIN.
+- `/api/jobs/:id/device-pin`: secure reveal path for the stored-job PIN.
 - `/dev/print-windows-queue`: forwards a PDF to the Windows connector, which submits it to a Windows print queue.
+- `/dev/print-direct`: legacy proof-of-concept that converts PDF to PostScript and sends bytes directly to the HP printer over TCP port `9100`.
 
 These paths prove connector submission. They do not prove final physical completion, toner/paper state, jam state, or printer-panel authentication.
+
+The current product direction prioritizes HP PJL stored/private jobs with PIN release. Portal users should only see options that the active connector actually honors. Page count is inferred from the PDF by the backend, copy count is sent as PJL `QTY`, and color/duplex/paper settings should stay hidden until queue defaults, separate queues, HP PJL/PCL/PostScript, or a proper Windows PrintTicket/.NET path exists.
 
 See `backend/README.md` for connector-specific setup and test commands.
 
@@ -180,6 +195,7 @@ npm run db:migrate
 Use these documents for current project decisions:
 
 - `AGENTS.md`: current shared project memory and constraints.
+- `Print_Management_System_Final_Report.pdf`: formal Milestone 7 snapshot of implemented MVP scope, screenshots, architecture, limitations, and future work.
 - `docs/project-todo.md`: execution plan and remaining work.
 - `docs/backend-database-plan.md`: database requirements and design notes.
 - `docs/architecture.md`: architecture boundaries and connector strategy.
@@ -196,4 +212,4 @@ Use these documents for current project decisions:
 
 - Do not commit production credentials, VM credentials, printer passwords, or AD secrets.
 - Keep uploaded and converted print files outside PostgreSQL. The database stores paths, hashes, metadata, expiry, and deletion timestamps.
-- Direct raw socket printing and Windows queue submission are not the same as secure pull printing.
+- Direct raw socket printing and Windows queue submission are not the same as secure pull printing. The current secure-release spike is HP device-memory storage with PIN retrieval.

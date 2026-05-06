@@ -12,9 +12,6 @@ const usageLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export function PortalDashboardScreen() {
   const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof getPortalDashboardSnapshot>> | null>(null)
   const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    refreshSnapshot()
-  }, [])
 
   async function refreshSnapshot() {
     try {
@@ -24,6 +21,27 @@ export function PortalDashboardScreen() {
       setError(nextError instanceof Error ? nextError.message : 'Unable to load portal dashboard.')
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    getPortalDashboardSnapshot()
+      .then((nextSnapshot) => {
+        if (!cancelled) {
+          setSnapshot(nextSnapshot)
+          setError(null)
+        }
+      })
+      .catch((nextError) => {
+        if (!cancelled) {
+          setError(nextError instanceof Error ? nextError.message : 'Unable to load portal dashboard.')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (!snapshot) {
     return (
@@ -41,7 +59,7 @@ export function PortalDashboardScreen() {
   }
 
   const { jobs, profile, weeklyUsage } = snapshot
-  const activeJobs = jobs.filter((job) => job.status === 'Pending Release' || job.status === 'In Progress')
+  const activeJobs = jobs.filter((job) => job.status === 'Ready to send' || job.status === 'Stored on printer' || job.status === 'In Progress')
   const completedJobs = jobs.filter((job) => job.status === 'Completed')
   const totalCost = completedJobs.reduce((sum, job) => sum + job.cost, 0)
   const totalPages = completedJobs.reduce((sum, job) => sum + job.totalPages, 0)

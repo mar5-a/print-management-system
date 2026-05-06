@@ -2,7 +2,6 @@ import { AlertTriangle, CheckCircle2, Info, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/composite/page-header'
-import { formatUsd } from '@/lib/formatters'
 import { getPortalSubmissionSnapshot, submitPortalJob } from './api'
 import { usePortalSubmissionForm } from './use-portal-submission-form'
 import type { PortalSubmissionDraft } from '@/types/portal'
@@ -16,11 +15,6 @@ export function PortalSubmitJobScreen() {
   const queues = snapshot?.queues ?? []
   const profile = snapshot?.profile
   const quotaRemaining = profile ? profile.quotaTotal - profile.quotaUsed : 0
-  const supportsColorOnAssignedRoute = defaultQueue?.colorMode === 'Color'
-  const totalPages = draft.pages * draft.copies
-  const estimatedCost = defaultQueue
-    ? Number((totalPages * defaultQueue.costPerPage * (draft.duplex ? 0.9 : 1) * (draft.colorMode === 'Color' ? 2 : 1)).toFixed(2))
-    : 0
   const alternateEligibleQueues = queues.filter((queue) => queue.available && !queue.isDefault)
 
   useEffect(() => {
@@ -75,13 +69,8 @@ export function PortalSubmitJobScreen() {
       return
     }
 
-    if (totalPages > quotaRemaining) {
-      setFeedback({ tone: 'error', message: 'This job exceeds your remaining quota.' })
-      return
-    }
-
-    if (!supportsColorOnAssignedRoute && draft.colorMode === 'Color') {
-      setFeedback({ tone: 'error', message: 'Your assigned web upload route only supports black-and-white output.' })
+    if (!Number.isInteger(draft.copies) || draft.copies < 1 || draft.copies > 25) {
+      setFeedback({ tone: 'error', message: 'Submit between 1 and 25 copies.' })
       return
     }
 
@@ -144,35 +133,35 @@ export function PortalSubmitJobScreen() {
 
           <section className="ui-panel overflow-hidden">
             <div className="border-b border-line bg-mist-50/80 px-4 py-3">
-              <div className="text-base font-semibold text-ink-950">Options</div>
+              <div className="text-base font-semibold text-ink-950">Print request</div>
             </div>
             <div className="grid gap-4 px-4 py-4 lg:grid-cols-2">
-              <label><div className="ui-heading">Pages</div><input type="number" min="1" className="ui-input mt-2" value={draft.pages} onChange={(event) => updateDraft('pages', Number(event.target.value))} /></label>
-              <label><div className="ui-heading">Copies</div><input type="number" min="1" className="ui-input mt-2" value={draft.copies} onChange={(event) => updateDraft('copies', Number(event.target.value))} /></label>
               <label>
-                <div className="ui-heading">Color mode</div>
-                <select className="ui-select mt-2 w-full" value={draft.colorMode} onChange={(event) => updateDraft('colorMode', event.target.value as PortalSubmissionDraft['colorMode'])}>
-                  <option>Black & White</option>
-                  <option disabled={!supportsColorOnAssignedRoute}>Color</option>
-                </select>
-                {!supportsColorOnAssignedRoute ? (
-                  <div className="mt-2 text-xs text-slate-500">
-                    Your assigned upload route is currently configured for black-and-white jobs only.
-                  </div>
-                ) : null}
+                <div className="ui-heading">Copies</div>
+                <input
+                  type="number"
+                  min="1"
+                  max="25"
+                  className="ui-input mt-2"
+                  value={draft.copies}
+                  onChange={(event) => updateDraft('copies', Number(event.target.value))}
+                />
+                <div className="mt-2 text-xs text-slate-500">
+                  Copy count is sent to the printer storage connector and also affects quota/cost.
+                </div>
               </label>
-              <label>
-                <div className="ui-heading">Paper type</div>
-                <select className="ui-select mt-2 w-full" value={draft.paperType} onChange={(event) => updateDraft('paperType', event.target.value as PortalSubmissionDraft['paperType'])}>
-                  <option>Standard</option>
-                  <option>Heavy</option>
-                  <option>Glossy</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-3 lg:col-span-2">
-                <input type="checkbox" checked={draft.duplex} onChange={(event) => updateDraft('duplex', event.target.checked)} />
-                <span className="text-sm text-ink-950">Double-sided printing when supported</span>
-              </label>
+              <div>
+                <div className="ui-heading">Page count</div>
+                <div className="mt-2 border border-line bg-mist-50 px-3 py-2 text-sm text-slate-600">
+                  Calculated from the PDF after upload.
+                </div>
+                <div className="mt-2 text-xs text-slate-500">
+                  Page count is no longer editable because it affects quota and cost.
+                </div>
+              </div>
+              <div className="border-t border-line pt-4 text-sm text-slate-500 lg:col-span-2">
+                Color, duplex, and paper settings are controlled by the printer/queue defaults for now. They are hidden until the connector can enforce them per job.
+              </div>
             </div>
           </section>
           <section className="ui-panel">
@@ -183,11 +172,11 @@ export function PortalSubmitJobScreen() {
                   <span>{feedback.message}</span>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500">PDF files are stored by the backend and held against your assigned route.</div>
+                <div className="text-sm text-slate-500">PDF files are stored by the backend first. Send them to printer memory from History when ready.</div>
               )}
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="ui-button-secondary" onClick={() => navigate('/portal/history')}>History</button>
-                <button type="submit" className="ui-button" disabled={isSubmitting}>{isSubmitting ? 'Sending...' : 'Submit job'}</button>
+                <button type="submit" className="ui-button" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Submit job'}</button>
               </div>
             </div>
           </section>
@@ -236,11 +225,11 @@ export function PortalSubmitJobScreen() {
             <div className="border-b border-line bg-mist-50/80 px-4 py-3"><div className="text-base font-semibold text-ink-950">Summary</div></div>
             <div className="space-y-3 px-4 py-4 text-sm text-slate-600">
               <div className="flex justify-between gap-4"><span>Assigned route</span><span className="font-medium text-ink-950">{defaultQueue?.name ?? 'None'}</span></div>
-              <div className="flex justify-between gap-4"><span>Total pages</span><span className="font-medium text-ink-950">{totalPages}</span></div>
-              <div className="flex justify-between gap-4"><span>Estimated cost</span><span className="font-medium text-ink-950">{formatUsd(estimatedCost)}</span></div>
-              <div className="flex justify-between gap-4"><span>Output support</span><span className="font-medium text-ink-950">{supportsColorOnAssignedRoute ? 'Black & White, Color' : 'Black & White only'}</span></div>
+              <div className="flex justify-between gap-4"><span>Copies</span><span className="font-medium text-ink-950">{draft.copies}</span></div>
+              <div className="flex justify-between gap-4"><span>Page count</span><span className="font-medium text-ink-950">Inferred by backend</span></div>
+              <div className="flex justify-between gap-4"><span>Print settings</span><span className="font-medium text-ink-950">Queue defaults</span></div>
               <div className="flex justify-between gap-4"><span>Release</span><span className="font-medium text-ink-950">{defaultQueue?.releaseMode ?? 'Assignment required'}</span></div>
-              <div className="border-t border-line pt-4 text-slate-500">Held files clear after {profile?.retentionHours ?? 24} hours. Release still happens at the device, not in this upload form.</div>
+              <div className="border-t border-line pt-4 text-slate-500">Held files clear after {profile?.retentionHours ?? 24} hours. Device storage and PIN retrieval are handled from History.</div>
             </div>
           </section>
 

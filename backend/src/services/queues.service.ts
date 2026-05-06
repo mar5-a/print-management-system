@@ -50,9 +50,9 @@ export async function listQueues(filters: QueueFilters): Promise<PaginatedResult
         COUNT(DISTINCT qp.printer_id) FILTER (WHERE qp.is_enabled = TRUE) AS printer_count,
         COALESCE(array_agg(DISTINCT p.printer_uuid::text) FILTER (WHERE p.id IS NOT NULL AND qp.is_enabled = TRUE), '{}') AS printer_ids,
         COALESCE(array_agg(DISTINCT qar.rule_value) FILTER (WHERE qar.rule_type = 'ad_group'), '{}') AS allowed_groups,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing')) AS pending_jobs,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing')) AS pending_jobs,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS held_jobs,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('sent_to_printer', 'stored_on_device') AND pj.released_at::date = CURRENT_DATE) AS released_today,
         MAX(COALESCE(pj.updated_at, q.updated_at)) AS last_activity_at
      FROM print_queues q
      LEFT JOIN pricing_rules pr ON pr.queue_id = q.id AND pr.is_active = TRUE
@@ -140,9 +140,9 @@ export async function getQueueById(id: string) {
         COUNT(DISTINCT qp.printer_id) FILTER (WHERE qp.is_enabled = TRUE) AS printer_count,
         COALESCE(array_agg(DISTINCT p.printer_uuid::text) FILTER (WHERE p.id IS NOT NULL AND qp.is_enabled = TRUE), '{}') AS printer_ids,
         COALESCE(array_agg(DISTINCT qar.rule_value) FILTER (WHERE qar.rule_type = 'ad_group'), '{}') AS allowed_groups,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing')) AS pending_jobs,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing')) AS pending_jobs,
         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS held_jobs,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('sent_to_printer', 'stored_on_device') AND pj.released_at::date = CURRENT_DATE) AS released_today,
         MAX(COALESCE(pj.updated_at, q.updated_at)) AS last_activity_at
      FROM print_queues q
      LEFT JOIN pricing_rules pr ON pr.queue_id = q.id AND pr.is_active = TRUE

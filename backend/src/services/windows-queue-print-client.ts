@@ -8,6 +8,7 @@ interface PrintViaConnectorOptions {
   uploadedPath: string
   originalFileName: string
   printerName?: string
+  copyCount?: number
 }
 
 export class WindowsQueuePrintClient {
@@ -15,8 +16,39 @@ export class WindowsQueuePrintClient {
     uploadedPath,
     originalFileName,
     printerName = config.windowsPrintQueue.target,
+    copyCount = 1,
   }: PrintViaConnectorOptions): Promise<WindowsQueuePrintResult> {
-    const jobId = crypto.randomUUID()
+    const normalizedCopyCount = Math.max(1, Math.floor(copyCount))
+    const results: WindowsQueuePrintResult[] = []
+
+    for (let copyIndex = 1; copyIndex <= normalizedCopyCount; copyIndex += 1) {
+      results.push(await this.submitSingleCopy({
+        uploadedPath,
+        originalFileName,
+        printerName,
+        copyIndex,
+        copyCount: normalizedCopyCount,
+      }))
+    }
+
+    const firstResult = results[0]
+
+    return {
+      ...firstResult,
+      jobId: results.map((result) => result.jobId).join(','),
+      copyCount: normalizedCopyCount,
+      connectorJobs: results,
+    }
+  }
+
+  private async submitSingleCopy({
+    uploadedPath,
+    originalFileName,
+    printerName,
+    copyIndex,
+    copyCount,
+  }: Required<PrintViaConnectorOptions> & { copyIndex: number }) {
+    const jobId = copyCount > 1 ? `${crypto.randomUUID()}-copy-${copyIndex}` : crypto.randomUUID()
     const file = await fs.readFile(uploadedPath)
     const form = new FormData()
 

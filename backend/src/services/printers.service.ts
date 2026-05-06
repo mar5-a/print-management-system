@@ -23,7 +23,7 @@ interface PrinterInput {
   supportsDuplex?: boolean
   serialNumber?: string
   notes?: string
-  connectorType?: 'raw_socket' | 'windows_queue' | 'ipp' | 'hp_oxp' | 'manual'
+  connectorType?: 'raw_socket' | 'windows_queue' | 'hp_pjl_stored_job' | 'ipp' | 'hp_oxp' | 'manual'
   connectorTarget?: string
 }
 
@@ -67,8 +67,8 @@ export async function listPrinters(filters: ListPrintersFilters): Promise<Pagina
         p.*,
         q.name AS queue_name,
         q.queue_uuid,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS pending_jobs,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing')) AS pending_jobs,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('sent_to_printer', 'stored_on_device') AND pj.released_at::date = CURRENT_DATE) AS released_today,
         COALESCE(SUM(pj.page_count * pj.copy_count), 0)::int AS total_pages,
         COUNT(DISTINCT pj.id)::int AS total_jobs
      FROM printers p
@@ -98,8 +98,8 @@ export async function getPrinterById(id: string) {
         p.*,
         q.name AS queue_name,
         q.queue_uuid,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS pending_jobs,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'sent_to_printer' AND pj.released_at::date = CURRENT_DATE) AS released_today,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing')) AS pending_jobs,
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('sent_to_printer', 'stored_on_device') AND pj.released_at::date = CURRENT_DATE) AS released_today,
         COALESCE(SUM(pj.page_count * pj.copy_count), 0)::int AS total_pages,
         COUNT(DISTINCT pj.id)::int AS total_jobs
      FROM printers p
@@ -144,7 +144,7 @@ export async function createPrinter(input: Required<Pick<PrinterInput, 'name'>> 
       input.supportsDuplex ?? true,
       input.serialNumber ?? null,
       input.notes ?? '',
-      input.connectorType ?? 'raw_socket',
+      input.connectorType ?? 'windows_queue',
       input.connectorTarget ?? null,
     ],
   )

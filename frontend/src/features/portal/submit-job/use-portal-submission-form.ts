@@ -3,11 +3,7 @@ import type { PortalSubmissionDraft } from '@/types/portal'
 
 const initialDraft: PortalSubmissionDraft = {
   fileName: '',
-  pages: 10,
   copies: 1,
-  colorMode: 'Black & White',
-  paperType: 'Standard',
-  duplex: true,
 }
 
 export function usePortalSubmissionForm() {

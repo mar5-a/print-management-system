@@ -32,6 +32,9 @@ interface BackendJob {
   status: string
   expires_at?: string
   failure_reason?: string | null
+  device_storage_username?: string | null
+  device_storage_job_name?: string | null
+  device_storage_submitted_at?: string | null
 }
 
 interface ApiData<T> {
@@ -52,11 +55,7 @@ export async function getPortalSubmissionSnapshot() {
 export async function submitPortalJob(draft: PortalSubmissionDraft, file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('pageCount', String(draft.pages))
   formData.append('copyCount', String(draft.copies))
-  formData.append('colorMode', draft.colorMode === 'Color' ? 'color' : 'bw')
-  formData.append('duplex', String(draft.duplex))
-  formData.append('paperType', draft.paperType.toLowerCase())
 
   const response = await api.post<ApiData<BackendJob>>('/jobs', formData)
   const portalJob = mapJob(response.data)
@@ -91,7 +90,7 @@ function mapJob(job: BackendJob): PortalPrintJob {
     userId: '',
     fileName: job.file_name,
     submittedAt: formatDate(job.submitted_at),
-    printerName: job.printer_name ?? 'Pending release',
+    printerName: job.printer_name ?? (job.status === 'held' ? 'Ready to send' : 'Pending printer'),
     queueName: job.queue_name,
     pages: job.page_count,
     copies: job.copy_count,
@@ -103,11 +102,15 @@ function mapJob(job: BackendJob): PortalPrintJob {
     status: mapStatus(job.status),
     retentionDeadline: job.expires_at ? formatDate(job.expires_at) : undefined,
     details: job.failure_reason ?? statusDetails(job.status),
+    deviceStorageUsername: job.device_storage_username ?? null,
+    deviceStorageJobName: job.device_storage_job_name ?? null,
+    deviceStorageSubmittedAt: job.device_storage_submitted_at ? formatDate(job.device_storage_submitted_at) : undefined,
   }
 }
 
 function mapStatus(status: string): PortalPrintJob['status'] {
-  if (status === 'held') return 'Pending Release'
+  if (status === 'held') return 'Ready to send'
+  if (status === 'stored_on_device') return 'Stored on printer'
   if (status === 'failed') return 'Failed'
   if (status === 'cancelled') return 'Cancelled'
   if (status === 'completed') return 'Completed'
@@ -115,7 +118,9 @@ function mapStatus(status: string): PortalPrintJob['status'] {
 }
 
 function statusDetails(status: string) {
-  if (status === 'held') return 'Stored by the backend and waiting for release.'
+  if (status === 'held') return 'Stored by the backend and ready to send to printer memory.'
+  if (status === 'stored_on_device') return 'Stored in printer memory. Retrieve it from the printer panel with your PIN.'
+  if (status === 'submitting_to_device_storage') return 'Sending the job to printer memory.'
   if (status === 'sent_to_printer') return 'Submitted to the printer connector.'
   if (status === 'queued') return 'Accepted by the Windows print queue connector.'
   return 'Tracked by the backend job lifecycle.'

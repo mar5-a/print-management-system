@@ -5,10 +5,12 @@ import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
 import { config } from './config.js'
+import { HpPjlStoredJobService } from './services/hp-pjl-stored-job-service.js'
 import { WindowsPrintCommand } from './services/windows-print-command.js'
 
 const app = express()
 const printCommand = new WindowsPrintCommand()
+const hpPjlStoredJobService = new HpPjlStoredJobService()
 
 const storage = multer.diskStorage({
   destination: async (_req, _file, cb) => {
@@ -123,6 +125,73 @@ app.post('/print', requireConnectorToken, upload.single('file'), async (req, res
   }
 })
 
+app.post('/store-on-device', requireConnectorToken, upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'Upload a PDF using multipart field "file".' })
+      return
+    }
+
+    const username = requireBodyText(req.body.username, 'username')
+    const jobName = requireBodyText(req.body.jobName, 'jobName')
+    const pin = requireBodyText(req.body.pin, 'pin')
+    const printerHost = optionalBodyText(req.body.printerHost) ?? config.printer.host
+    const printerPort = Number(optionalBodyText(req.body.printerPort) ?? config.printer.port)
+    const copyCount = Number(optionalBodyText(req.body.copyCount) ?? 1)
+
+    const result = await hpPjlStoredJobService.storePdfOnDevice({
+      uploadedPath: req.file.path,
+      originalFileName: req.file.originalname,
+      printerHost,
+      printerPort: Number.isFinite(printerPort) ? printerPort : config.printer.port,
+      username,
+      jobName,
+      pin,
+      copyCount: Number.isFinite(copyCount) ? copyCount : 1,
+    })
+
+    console.info('HP PJL stored job submitted', {
+      jobId: result.jobId,
+      printerHost: result.printerHost,
+      printerPort: result.printerPort,
+      username: result.username,
+      jobName: result.jobName,
+      originalFileName: result.originalFileName,
+      bytesSent: result.bytesSent,
+      storedAt: result.storedAt,
+    })
+
+    res.status(202).json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/diagnostics/pjl-stored-job', requireConnectorToken, async (req, res, next) => {
+  try {
+    const printerHost = optionalBodyText(req.body.printerHost) ?? config.printer.host
+    const printerPort = Number(optionalBodyText(req.body.printerPort) ?? config.printer.port)
+    const result = await hpPjlStoredJobService.sendDiagnosticStoredJob(
+      printerHost,
+      Number.isFinite(printerPort) ? printerPort : config.printer.port,
+    )
+
+    console.info('HP PJL diagnostic stored job submitted', {
+      jobId: result.jobId,
+      printerHost: result.printerHost,
+      printerPort: result.printerPort,
+      username: result.username,
+      jobName: result.jobName,
+      bytesSent: result.bytesSent,
+      storedAt: result.storedAt,
+    })
+
+    res.status(202).json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post(
   '/print-file',
   requireConnectorToken,
@@ -190,6 +259,20 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     error: message,
   })
 })
+
+function optionalBodyText(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function requireBodyText(value: unknown, fieldName: string) {
+  const text = optionalBodyText(value)
+
+  if (!text) {
+    throw new Error(`Missing required field "${fieldName}".`)
+  }
+
+  return text
+}
 
 app.listen(config.windowsConnector.port, () => {
   console.log(`Windows print connector listening on http://localhost:${config.windowsConnector.port}`)

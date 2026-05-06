@@ -1,19 +1,18 @@
 # Backend
 
-Minimal backend for the first printer integration spike.
+TypeScript/Express backend for the Print Management System MVP.
 
 Current scope:
 
 - Run PostgreSQL migrations and seed MVP development records.
-- Accept a PDF upload.
-- Save the uploaded file outside the database.
-- Convert the PDF to PostScript with Ghostscript.
-- Send the PostScript bytes to the HP printer over raw TCP port `9100`.
-- Append the PostScript end-of-job byte `0x04`.
-- Optionally forward a PDF to the Windows print connector service for Windows queue delivery.
-- Return `sent_to_printer` or a failure response.
+- Serve DB-backed `/api` routes for auth, portal jobs/history/dashboard, admin management, technician views, logs, groups, queues, printers, alerts, and dashboard data.
+- Accept PDF uploads through `POST /api/jobs`.
+- Save uploaded files outside PostgreSQL and store metadata in the database.
+- Keep printer delivery behind connector boundaries.
+- Prioritize the HP PJL stored/private job workflow.
+- Keep Windows queue/Sumatra and raw socket only as fallback diagnostics/proof-of-concepts.
 
-The direct print endpoint proves delivery only. It does not implement pull printing, printer-panel authentication, quota enforcement, database-backed job history, or reliable physical completion feedback yet.
+The app now exposes a stored-job release workflow. `POST /api/jobs/:id/store-on-device` sends a held PDF to HP device memory with a generated PIN; the user releases it from the printer panel. This still needs manual VM/printer verification after deployment.
 
 ## Setup
 
@@ -38,6 +37,15 @@ docker compose up -d postgres
 
 Or point `DATABASE_URL` at an existing Postgres instance.
 
+If `npm run db:migrate` fails with `ECONNREFUSED 127.0.0.1:5432` or `ECONNREFUSED ::1:5432`, Postgres is not running at the configured `DATABASE_URL`. On local dev, start Docker Desktop first, then run:
+
+```bash
+cd backend
+docker compose up -d postgres
+docker compose ps
+npm run db:migrate
+```
+
 Run migrations:
 
 ```bash
@@ -56,7 +64,24 @@ Run the backend:
 npm run dev
 ```
 
+## CORS During Local Development
+
+The browser treats these as different origins:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+```
+
+If the frontend shows `NetworkError when attempting to fetch resource` and the network tab mentions CORS, make sure `FRONTEND_ORIGIN` includes the exact frontend URL. The default includes both local Vite origins. If you override it in `.env`, use a comma-separated list:
+
+```env
+FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+```
+
 ## Direct Print Test
+
+This is a legacy proof-of-concept path. Use the Windows queue connector for current MVP workflow testing when possible.
 
 Use the temporary dev endpoint:
 
@@ -87,14 +112,20 @@ PDF file path
 
 Later, the real flow should call the same connector from `POST /jobs/{id}/release` after auth, quota, queue, file retention, and audit logging are implemented.
 
-## Windows Queue Connector Spike
+## Windows Connector Spike
 
-The Windows queue path is split into two pieces:
+The connector process supports both the current HP PJL stored-job path and the fallback Windows queue path. It is split into two pieces:
 
 - Main backend diagnostic route: `POST /dev/print-windows-queue`
 - Windows-side connector process: `npm run dev:windows-connector`
 
 These are separate processes by design. The main backend owns application concerns such as jobs, users, quotas, database writes, release decisions, and audit logs. The Windows connector owns only printer delivery close to the Windows queue and driver. During development the main backend can run on a Mac while the connector runs on `PRINTSOL-STU1`.
+
+Current portal option policy:
+
+- Page count is inferred from the uploaded PDF by the backend.
+- Copy count is sent to the HP PJL connector as `QTY` for the stored-job path.
+- Color, duplex, and paper type stay hidden in the portal until the connector can enforce them through queue defaults, separate queues, HP PJL/PCL/PostScript, PrintTicket/.NET, or another reliable printing path.
 
 The connector is intended to run on `PRINTSOL-STU1`, close to the local Windows queue:
 
@@ -131,6 +162,25 @@ Health check:
 
 ```powershell
 curl http://localhost:4100/health
+```
+
+HP PJL stored-job diagnostic from the VM:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://localhost:4100/diagnostics/pjl-stored-job `
+  -Method Post `
+  -ContentType application/json `
+  -Body '{}'
+```
+
+Expected printer result:
+
+```text
+Retrieve from Device Memory
+-> folder PRINTSOL_TEST
+-> job PJL_STORE_001
+-> PIN 1234
 ```
 
 Direct connector test from the VM:
@@ -189,13 +239,20 @@ Mac backend
 -> HP M830 printer
 ```
 
+Known target experiment for the current product path:
+
+```text
+Main backend
+-> POST /api/jobs/:id/store-on-device
+-> Windows connector on PRINTSOL-STU1:4100
+-> Ghostscript PDF-to-PostScript
+-> HP PJL stored/private job wrapper
+-> HP MFP M830 port 9100
+-> Retrieve from Device Memory with generated PIN
+```
+
 ## Database
 
 Migrations live in [`migrations/`](/Users/mar5/vscode/print-management-system/backend/migrations).
 
-Current migration order:
-
-- `001_initial_schema.sql`: SRS-backed tables, constraints, indexes, and timestamp triggers.
-- `002_seed_dev_data.sql`: dev roles, users, department, quota, student queue, HP printer, queue access rule, and pricing.
-
-The backend uses plain SQL migrations with `pg`; there is no ORM.
+The backend uses plain SQL migrations with `pg`; there is no ORM. Later migrations add DB auth, logs, groups, operational demo data, alert acknowledgement, and the current HP-PJL-stored-job connector preference.

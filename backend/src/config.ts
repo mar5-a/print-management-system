@@ -8,7 +8,7 @@ const backendRoot = path.resolve(__dirname, '..')
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
-  FRONTEND_ORIGIN: z.string().default('http://localhost:5173'),
+  FRONTEND_ORIGIN: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
   DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/print_management'),
   PRINTER_HOST: z.string().default('10.22.114.241'),
   PRINTER_PORT: z.coerce.number().int().positive().default(9100),
@@ -23,6 +23,7 @@ const envSchema = z.object({
   WINDOWS_PRINT_COMMAND: z.string().default(''),
   WINDOWS_PRINT_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   JWT_SECRET: z.string().default('dev-only-change-me'),
+  JOB_PIN_ENCRYPTION_KEY: z.string().default('dev-only-pin-key-change-me'),
   GHOSTSCRIPT_BIN: z.string().default('gs'),
   UPLOAD_DIR: z.string().default('storage/uploads'),
   CONVERTED_DIR: z.string().default('storage/converted'),
@@ -60,6 +61,7 @@ export const config = {
     printTimeoutMs: env.WINDOWS_PRINT_TIMEOUT_MS,
   },
   jwtSecret: env.JWT_SECRET,
+  jobPinEncryptionKey: env.JOB_PIN_ENCRYPTION_KEY,
   ghostscriptBin: env.GHOSTSCRIPT_BIN,
   uploadDir: resolveBackendPath(env.UPLOAD_DIR),
   convertedDir: resolveBackendPath(env.CONVERTED_DIR),

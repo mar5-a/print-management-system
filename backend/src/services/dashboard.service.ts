@@ -103,7 +103,7 @@ export async function getDashboardSnapshot() {
          p.printer_uuid::text AS id,
          p.name,
          p.status,
-         COUNT(pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing', 'blocked'))::text AS pending_jobs
+         COUNT(pj.id) FILTER (WHERE pj.status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing', 'blocked'))::text AS pending_jobs
        FROM printers p
        LEFT JOIN print_jobs pj ON pj.printer_id = p.id
        WHERE p.status <> 'archived'
@@ -181,7 +181,7 @@ export async function getTechnicianDashboardSnapshot() {
     ),
     query<{ held_jobs: string }>(
       `SELECT
-         COUNT(*) FILTER (WHERE status IN ('held', 'queued', 'printing', 'blocked'))::text AS held_jobs
+         COUNT(*) FILTER (WHERE status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing', 'blocked'))::text AS held_jobs
        FROM print_jobs`,
     ),
     query<{
@@ -197,7 +197,7 @@ export async function getTechnicianDashboardSnapshot() {
          p.name,
          p.status,
          q.name AS queue_name,
-         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'queued', 'printing', 'blocked'))::text AS held_jobs,
+         COUNT(DISTINCT pj.id) FILTER (WHERE pj.status IN ('held', 'submitting_to_device_storage', 'stored_on_device', 'queued', 'printing', 'blocked'))::text AS held_jobs,
          p.location
        FROM printers p
        LEFT JOIN queue_printers qp ON qp.printer_id = p.id AND qp.is_enabled = TRUE

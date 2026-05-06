@@ -28,7 +28,7 @@ const createSchema = z.object({
   supportsDuplex: z.boolean().optional(),
   serialNumber: z.string().max(255).optional(),
   notes: z.string().optional(),
-  connectorType: z.enum(['raw_socket', 'windows_queue', 'ipp', 'hp_oxp', 'manual']).optional(),
+  connectorType: z.enum(['raw_socket', 'windows_queue', 'hp_pjl_stored_job', 'ipp', 'hp_oxp', 'manual']).optional(),
   connectorTarget: z.string().max(255).optional(),
 })
 

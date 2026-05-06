@@ -1,7 +1,7 @@
 import type { QueueAccessScope } from './admin'
 
 export type PortalUserRole = 'Student' | 'Faculty'
-export type PortalJobStatus = 'Pending Release' | 'In Progress' | 'Completed' | 'Failed' | 'Cancelled'
+export type PortalJobStatus = 'Ready to send' | 'Stored on printer' | 'In Progress' | 'Completed' | 'Failed' | 'Cancelled'
 
 export interface PortalUserProfile {
   id: string
@@ -49,13 +49,19 @@ export interface PortalPrintJob {
   status: PortalJobStatus
   retentionDeadline?: string
   details: string
+  deviceStorageUsername?: string | null
+  deviceStorageJobName?: string | null
+  deviceStorageSubmittedAt?: string
 }
 
 export interface PortalSubmissionDraft {
   fileName: string
-  pages: number
   copies: number
-  colorMode: 'Black & White' | 'Color'
-  paperType: 'Standard' | 'Heavy' | 'Glossy'
-  duplex: boolean
+}
+
+export interface PortalDeviceReleaseInfo {
+  username: string
+  jobName: string
+  pin: string
+  instructions: string
 }

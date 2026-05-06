@@ -48,17 +48,13 @@ const upload = multer({
 
 const listSchema = z.object({
   queueId: z.string().optional(),
-  status: z.enum(['held', 'sent_to_printer', 'failed', 'cancelled', 'expired', 'queued', 'printing', 'completed', 'blocked']).optional(),
+  status: z.enum(['held', 'submitting_to_device_storage', 'stored_on_device', 'sent_to_printer', 'failed', 'cancelled', 'expired', 'queued', 'printing', 'completed', 'blocked']).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
 const submitSchema = z.object({
-  pageCount: z.coerce.number().int().positive(),
-  copyCount: z.coerce.number().int().positive().default(1),
-  colorMode: z.enum(['bw', 'color']).default('bw'),
-  duplex: z.coerce.boolean().default(false),
-  paperType: z.string().min(1).max(64).default('standard'),
+  copyCount: z.coerce.number().int().positive().max(25).default(1),
 })
 
 router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema.extend({ userId: z.coerce.number().int().positive().optional() })), async (req, res) => {
@@ -90,6 +86,18 @@ router.get('/:id', async (req, res) => {
 
 router.get('/:id/events', async (req, res) => {
   ok(res, await jobsService.listJobEvents(req.params.id, req.user!))
+})
+
+router.get('/:id/device-pin', async (req, res) => {
+  ok(res, await jobsService.getDevicePin(req.params.id, req.user!))
+})
+
+router.post('/:id/store-on-device', async (req, res) => {
+  const result = await jobsService.storeJobOnDevice(req.params.id, req.user!)
+  res.status(202).json({
+    data: result.job,
+    deviceRelease: result.deviceRelease,
+  })
 })
 
 router.post('/:id/release', async (req, res) => {
