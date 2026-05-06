@@ -96,7 +96,9 @@ export async function listEligibleQueuesForUser(userId: number) {
         q.*,
         COALESCE(pr.cost_per_page, 0) AS cost_per_page,
         COUNT(DISTINCT qp.printer_id) FILTER (WHERE qp.is_enabled = TRUE) AS printer_count,
-        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS held_jobs
+        COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'held') AS held_jobs,
+        (SELECT p.is_color FROM queue_printers qp2 JOIN printers p ON p.id = qp2.printer_id WHERE qp2.queue_id = q.id AND qp2.is_primary = TRUE LIMIT 1) AS is_color,
+        (SELECT p.supports_duplex FROM queue_printers qp2 JOIN printers p ON p.id = qp2.printer_id WHERE qp2.queue_id = q.id AND qp2.is_primary = TRUE LIMIT 1) AS supports_duplex
       FROM print_queues q
       CROSS JOIN user_context uc
       LEFT JOIN pricing_rules pr ON pr.queue_id = q.id AND pr.is_active = TRUE
@@ -351,6 +353,8 @@ function toQueue(row: Record<string, unknown>) {
     printer_count: Number(row.printer_count ?? 0),
     printer_ids: Array.isArray(row.printer_ids) ? row.printer_ids.map(String) : [],
     allowed_groups: Array.isArray(row.allowed_groups) ? row.allowed_groups.map(String) : [],
+    is_color: Boolean(row.is_color),
+    supports_duplex: row.supports_duplex !== null && row.supports_duplex !== undefined ? Boolean(row.supports_duplex) : true,
     pending_jobs: Number(row.pending_jobs ?? 0),
     held_jobs: Number(row.held_jobs ?? 0),
     released_today: Number(row.released_today ?? 0),

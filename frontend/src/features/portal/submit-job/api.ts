@@ -13,6 +13,8 @@ interface BackendQueue {
   cost_per_page: number
   printer_count: number
   held_jobs: number
+  is_color: boolean
+  supports_duplex: boolean
 }
 
 interface BackendJob {
@@ -56,6 +58,10 @@ export async function submitPortalJob(draft: PortalSubmissionDraft, file: File) 
   const formData = new FormData()
   formData.append('file', file)
   formData.append('copyCount', String(draft.copies))
+  if (draft.queueId) formData.append('queueId', draft.queueId)
+  if (draft.colorMode) formData.append('colorMode', draft.colorMode)
+  if (draft.duplex !== undefined) formData.append('duplex', String(draft.duplex))
+  if (draft.paperType) formData.append('paperType', draft.paperType)
 
   const response = await api.post<ApiData<BackendJob>>('/jobs', formData)
   const portalJob = mapJob(response.data)
@@ -76,11 +82,13 @@ function mapQueue(queue: BackendQueue): PortalQueueOption {
     pendingJobs: queue.held_jobs,
     releaseMode: queue.release_mode === 'immediate' ? 'Immediate' : 'Secure Release',
     access: queue.queue_type === 'faculty' ? 'Faculty' : queue.queue_type === 'staff' ? 'Staff' : queue.queue_type === 'mixed' ? 'Mixed' : 'Students',
-    colorMode: 'Black & White',
+    colorMode: queue.is_color ? 'Color' : 'Black & White',
     available: queue.status === 'active',
     isDefault: queue.is_default,
     submissionPath: 'Web upload',
     costPerPage: queue.cost_per_page,
+    supportsColor: queue.is_color,
+    supportsDuplex: queue.supports_duplex,
   }
 }
 
