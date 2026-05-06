@@ -74,7 +74,7 @@ export async function listPrinters(filters: ListPrintersFilters): Promise<Pagina
      FROM printers p
      LEFT JOIN queue_printers qp ON qp.printer_id = p.id AND qp.is_enabled = TRUE
      LEFT JOIN print_queues q ON q.id = qp.queue_id
-     LEFT JOIN print_jobs pj ON pj.printer_id = p.id
+     LEFT JOIN print_jobs pj ON pj.queue_id = q.id
      WHERE ${where}
      GROUP BY p.id, q.name, q.queue_uuid
      ORDER BY p.name
@@ -105,7 +105,7 @@ export async function getPrinterById(id: string) {
      FROM printers p
      LEFT JOIN queue_printers qp ON qp.printer_id = p.id AND qp.is_enabled = TRUE
      LEFT JOIN print_queues q ON q.id = qp.queue_id
-     LEFT JOIN print_jobs pj ON pj.printer_id = p.id
+     LEFT JOIN print_jobs pj ON pj.queue_id = q.id
      WHERE p.printer_uuid::text = $1 OR p.id::text = $1
      GROUP BY p.id, q.name, q.queue_uuid`,
     [id],
@@ -217,6 +217,10 @@ export async function updatePrinter(id: string, input: PrinterInput, actor?: Aut
 
 export async function deletePrinter(id: string, actor?: AuthenticatedUser) {
   const before = await getPrinterById(id)
+
+  if (before.pending_jobs > 0) {
+    throw new ConflictError('Cannot delete printer with active jobs')
+  }
 
   await query(
     `UPDATE printers SET status = 'archived', updated_at = NOW()
