@@ -5,12 +5,16 @@ import { query, transaction } from '../db/pool.js'
 import { ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
 import { decryptDevicePin, encryptDevicePin, generateDevicePin } from './job-pin-secrets.js'
 import { PrintDeliveryService } from './print-delivery-service.js'
-import { resolveDefaultQueueForUser } from './queues.service.js'
+import { resolveDefaultQueueForUser, listEligibleQueuesForUser } from './queues.service.js'
 import type { AuthenticatedUser, PaginatedResult } from '../types/api.js'
 
 interface SubmitJobInput {
   file: Express.Multer.File
   copyCount: number
+  queueId?: string
+  colorMode?: 'bw' | 'color'
+  duplex?: boolean
+  paperType?: string
 }
 
 interface ListJobFilters {
@@ -24,14 +28,28 @@ interface ListJobFilters {
 const reservedQuotaStatuses = ['held', 'submitting_to_device_storage', 'blocked']
 
 export async function submitJob(user: AuthenticatedUser, input: SubmitJobInput) {
-  const queue = await resolveDefaultQueueForUser(user.id)
+  let queue: Awaited<ReturnType<typeof resolveDefaultQueueForUser>>
+
+  if (input.queueId) {
+    const eligible = await listEligibleQueuesForUser(user.id)
+    const found = eligible.find((q) => q.id === input.queueId || String(q.internal_id) === input.queueId)
+    if (!found) throw new ForbiddenError()
+    queue = found
+  } else {
+    queue = await resolveDefaultQueueForUser(user.id)
+  }
+
+  const colorMode = input.colorMode ?? 'bw'
+  const duplex = input.duplex ?? false
+  const paperType = input.paperType ?? 'standard'
+
   const pageCount = await inferPdfPageCount(input.file.path)
   const totalPages = pageCount * input.copyCount
   await assertQuotaAvailable(user.id, totalPages)
 
   const expiresAt = new Date(Date.now() + Number(queue.retention_hours) * 60 * 60 * 1000)
   const fileHash = await hashFile(input.file.path)
-  const estimatedCost = await estimateCost(Number(queue.internal_id), 'standard', 'bw', totalPages)
+  const estimatedCost = await estimateCost(Number(queue.internal_id), paperType, colorMode, totalPages)
 
   const jobUuid = await transaction(async (client) => {
     const job = await client.query<{ id: number; job_uuid: string }>(
@@ -39,13 +57,16 @@ export async function submitJob(user: AuthenticatedUser, input: SubmitJobInput) 
          user_id, queue_id, source_channel, page_count, page_count_source, copy_count,
          color_mode, duplex, paper_type, estimated_cost, status, expires_at
        )
-       VALUES ($1, $2, 'web_upload', $3, 'pdf_inferred', $4, 'bw', false, 'standard', $5, 'held', $6)
+       VALUES ($1, $2, 'web_upload', $3, 'pdf_inferred', $4, $5, $6, $7, $8, 'held', $9)
        RETURNING id, job_uuid`,
       [
         user.id,
         queue.internal_id,
         pageCount,
         input.copyCount,
+        colorMode,
+        duplex,
+        paperType,
         estimatedCost,
         expiresAt,
       ],
