@@ -62,7 +62,7 @@ export function TechShell() {
             <DatabaseZap className="mt-1 size-5 text-accent-500" />
           </div>
 
-          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 lg:pb-24">
+          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
             {techNavItems.map((item) => (
               <NavLink
                 key={item.href}
@@ -93,18 +93,21 @@ export function TechShell() {
             ))}
           </nav>
 
-          <div className="mt-3 shrink-0 border-t border-slate-700 bg-[#111827] pt-3 lg:fixed lg:bottom-4 lg:left-4 lg:z-20 lg:mt-0 lg:w-[216px]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-sm">
-                <div className="ui-kicker text-slate-300">Operator</div>
-                <div className="mt-1 truncate font-semibold text-white">Sarah Tech</div>
-                <div className="truncate text-slate-400">Operations · Online</div>
+          <div className="mt-4 shrink-0 border-t border-slate-700 pt-4">
+            <div className="ui-kicker text-slate-300">Operator</div>
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <div>
+                <div className="font-semibold text-white">Sarah Tech</div>
+                <div className="text-slate-400">Operations</div>
               </div>
-              <button className="ui-button-secondary h-9 shrink-0 px-3" onClick={handleLogout}>
-                <LogOut className="size-4" />
-                <span>Log Out</span>
-              </button>
+              <div className="rounded-full bg-accent-100 px-2.5 py-1 text-[0.7rem] font-semibold text-accent-700">
+                Online
+              </div>
             </div>
+            <button className="ui-button-secondary mt-4 w-full" onClick={handleLogout}>
+              <LogOut className="size-4" />
+              Log Out
+            </button>
           </div>
         </aside>
 

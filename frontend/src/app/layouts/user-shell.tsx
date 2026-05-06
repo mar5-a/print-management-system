@@ -55,7 +55,7 @@ export function UserShell() {
             <p className="mt-1 text-sm text-slate-400">Student printing</p>
           </div>
 
-          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 lg:pb-24">
+          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
             {portalNavItems.map((item) => (
               <NavLink
                 key={item.href}
@@ -86,22 +86,16 @@ export function UserShell() {
             ))}
           </nav>
 
-          <div className="mt-3 shrink-0 border-t border-slate-700 bg-[#111827] pt-3 lg:fixed lg:bottom-4 lg:left-4 lg:z-20 lg:mt-0 lg:w-[200px]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-sm">
-                <div className="ui-kicker text-slate-300">Signed in</div>
-                <div className="mt-1 truncate font-semibold text-white">
-                  {portalUserProfile.displayName}
-                </div>
-                <div className="truncate text-slate-400">
-                  {portalUserProfile.role} · {portalUserProfile.department}
-                </div>
-              </div>
-              <button className="ui-button-secondary h-9 shrink-0 px-3" onClick={handleLogout}>
-                <LogOut className="size-4" />
-                <span>Log Out</span>
-              </button>
+          <div className="mt-4 shrink-0 border-t border-slate-700 pt-4">
+            <div className="ui-kicker text-slate-300">Signed in</div>
+            <div className="mt-2 text-sm">
+              <div className="font-semibold text-white">{portalUserProfile.displayName}</div>
+              <div className="text-slate-400">{portalUserProfile.role} · {portalUserProfile.department}</div>
             </div>
+            <button className="ui-button-secondary mt-4 w-full" onClick={handleLogout}>
+              <LogOut className="size-4" />
+              Log Out
+            </button>
           </div>
         </aside>
 

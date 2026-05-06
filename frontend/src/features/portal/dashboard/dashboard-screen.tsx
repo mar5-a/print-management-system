@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Upload } from 'lucide-react'
 import { PageHeader } from '@/components/composite/page-header'
 import { buildLinePoints } from '@/lib/charts'
 import { formatUsd } from '@/lib/formatters'
@@ -82,12 +80,6 @@ export function PortalDashboardScreen() {
         eyebrow="Portal"
         title="Dashboard"
         description="Active print jobs, quota, and recent activity for your account."
-        meta={
-          <Link className="ui-button-action" to="/portal/submit-job">
-            <Upload className="size-4" />
-            Submit job
-          </Link>
-        }
       />
 
       {error ? (
