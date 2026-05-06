@@ -284,6 +284,8 @@ export function listPortalQueuesForCurrentUser() {
       submissionPath: queue.id === defaultQueueId ? 'Default web upload route' : 'Eligible campus queue',
       reason,
       costPerPage: queue.costPerPage,
+      supportsColor: assignedPrinter?.isColor ?? false,
+      supportsDuplex: true,
     }
   })
 
