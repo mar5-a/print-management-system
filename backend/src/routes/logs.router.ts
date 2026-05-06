@@ -7,7 +7,7 @@ import * as logsService from '../services/logs.service.js'
 
 const router = Router()
 router.use(authenticate)
-router.use(requireRole('admin', 'technician'))
+router.use(requireRole('admin'))
 
 const rangeSchema = z.object({
   range: z.enum(['day', 'week', 'month']).optional(),
