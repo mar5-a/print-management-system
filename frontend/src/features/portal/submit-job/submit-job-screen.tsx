@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Upload } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Info, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/composite/page-header'
@@ -10,14 +10,12 @@ export function PortalSubmitJobScreen() {
   const navigate = useNavigate()
   const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof getPortalSubmissionSnapshot>> | null>(null)
   const [snapshotError, setSnapshotError] = useState<string | null>(null)
-  const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null)
   const { draft, feedback, file, isSubmitting, resetForm, setDraft, setFeedback, setFile, setIsSubmitting } = usePortalSubmissionForm()
   const defaultQueue = snapshot?.defaultQueue
   const queues = snapshot?.queues ?? []
-  const availableQueues = queues.filter((queue) => queue.available)
-  const selectedQueue = queues.find((q) => q.id === selectedQueueId) ?? defaultQueue
   const profile = snapshot?.profile
   const quotaRemaining = profile ? profile.quotaTotal - profile.quotaUsed : 0
+  const alternateEligibleQueues = queues.filter((queue) => queue.available && !queue.isDefault)
 
   useEffect(() => {
     let cancelled = false
@@ -26,11 +24,6 @@ export function PortalSubmitJobScreen() {
       .then((nextSnapshot) => {
         if (!cancelled) {
           setSnapshot(nextSnapshot)
-          const initial = nextSnapshot.defaultQueue ?? nextSnapshot.queues.find((q) => q.available)
-          if (initial) {
-            setSelectedQueueId(initial.id)
-            setDraft((current) => ({ ...current, queueId: initial.id, colorMode: 'bw', duplex: false, paperType: 'standard' }))
-          }
         }
       })
       .catch((error) => {
@@ -49,17 +42,6 @@ export function PortalSubmitJobScreen() {
     setFile(nextFile)
     setDraft((current) => ({ ...current, fileName: nextFile?.name ?? '' }))
     setFeedback(null)
-  }
-
-  function handleQueueChange(queueId: string) {
-    setSelectedQueueId(queueId)
-    const q = queues.find((x) => x.id === queueId)
-    setDraft((current) => ({
-      ...current,
-      queueId,
-      colorMode: q?.supportsColor ? current.colorMode : 'bw',
-      duplex: q?.supportsDuplex ? current.duplex : false,
-    }))
   }
 
   function updateDraft<K extends keyof PortalSubmissionDraft>(field: K, value: PortalSubmissionDraft[K]) {
@@ -82,8 +64,8 @@ export function PortalSubmitJobScreen() {
       return
     }
 
-    if (!selectedQueue || !selectedQueue.available) {
-      setFeedback({ tone: 'error', message: 'Your selected queue is currently unavailable.' })
+    if (!defaultQueue || !defaultQueue.available) {
+      setFeedback({ tone: 'error', message: 'Your assigned web upload route is currently unavailable.' })
       return
     }
 
@@ -177,48 +159,9 @@ export function PortalSubmitJobScreen() {
                   Page count is no longer editable because it affects quota and cost.
                 </div>
               </div>
-              <label>
-                <div className="ui-heading">Color mode</div>
-                <select
-                  className="ui-input mt-2"
-                  value={draft.colorMode ?? 'bw'}
-                  disabled={!selectedQueue?.supportsColor}
-                  onChange={(e) => updateDraft('colorMode', e.target.value as 'bw' | 'color')}
-                >
-                  <option value="bw">Black &amp; White</option>
-                  <option value="color" disabled={!selectedQueue?.supportsColor}>Color</option>
-                </select>
-                {!selectedQueue?.supportsColor && (
-                  <div className="mt-2 text-xs text-slate-500">This queue's printer does not support color.</div>
-                )}
-              </label>
-              <label>
-                <div className="ui-heading">Duplex</div>
-                <select
-                  className="ui-input mt-2"
-                  value={draft.duplex ? 'double' : 'single'}
-                  disabled={!selectedQueue?.supportsDuplex}
-                  onChange={(e) => updateDraft('duplex', e.target.value === 'double')}
-                >
-                  <option value="single">Single-sided</option>
-                  <option value="double" disabled={!selectedQueue?.supportsDuplex}>Double-sided</option>
-                </select>
-                {!selectedQueue?.supportsDuplex && (
-                  <div className="mt-2 text-xs text-slate-500">This queue's printer does not support duplex.</div>
-                )}
-              </label>
-              <label>
-                <div className="ui-heading">Paper type</div>
-                <select
-                  className="ui-input mt-2"
-                  value={draft.paperType ?? 'standard'}
-                  onChange={(e) => updateDraft('paperType', e.target.value)}
-                >
-                  <option value="standard">Standard</option>
-                  <option value="heavy">Heavy</option>
-                  <option value="glossy">Glossy</option>
-                </select>
-              </label>
+              <div className="border-t border-line pt-4 text-sm text-slate-500 lg:col-span-2">
+                Color, duplex, and paper settings are controlled by the printer/queue defaults for now. They are hidden until the connector can enforce them per job.
+              </div>
             </div>
           </section>
           <section className="ui-panel">
@@ -245,54 +188,47 @@ export function PortalSubmitJobScreen() {
               <div className="text-base font-semibold text-ink-950">Assigned route</div>
             </div>
             <div className="space-y-3 px-4 py-4">
-              {availableQueues.length > 1 ? (
-                <label>
-                  <div className="ui-heading">Queue</div>
-                  <select
-                    className="ui-input mt-2"
-                    value={selectedQueueId ?? ''}
-                    onChange={(e) => handleQueueChange(e.target.value)}
-                  >
-                    {availableQueues.map((q) => (
-                      <option key={q.id} value={q.id}>{q.name}{q.isDefault ? ' (default)' : ''}</option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <div className={`border px-3 py-3 ${selectedQueue?.available ? 'border-line bg-white' : 'border-danger-200 bg-danger-50/60'}`}>
+              <div className="flex items-start gap-2 text-sm text-slate-600">
+                <Info className="mt-0.5 size-4 text-accent-700" />
+                <span>Resolved by policy. Queue selection is not available in the portal.</span>
+              </div>
+              <div className={`border px-3 py-3 ${defaultQueue?.available ? 'border-line bg-white' : 'border-danger-200 bg-danger-50/60'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-ink-950">{selectedQueue?.name ?? 'No available queue'}</div>
+                    <div className="text-sm font-semibold text-ink-950">{defaultQueue?.name ?? 'No assigned route'}</div>
                     <div className="mt-1 text-sm text-slate-500">
-                      {selectedQueue ? `${selectedQueue.printerName} · ${selectedQueue.location}` : 'A valid queue assignment is required before web submission can continue.'}
+                      {defaultQueue ? `${defaultQueue.printerName} · ${defaultQueue.location}` : 'A valid queue assignment is required before web submission can continue.'}
                     </div>
                   </div>
-                  <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedQueue?.available ? 'bg-accent-100 text-accent-700' : 'bg-danger-100 text-danger-500'}`}>
-                    {selectedQueue?.available ? selectedQueue.submissionPath : 'Needs admin review'}
+                  <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${defaultQueue?.available ? 'bg-accent-100 text-accent-700' : 'bg-danger-100 text-danger-500'}`}>
+                    {defaultQueue?.available ? defaultQueue.submissionPath : 'Needs admin review'}
                   </div>
                 </div>
-                {selectedQueue ? (
+                {defaultQueue ? (
                   <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-500">
-                    <span>{selectedQueue.releaseMode}</span>
-                    <span>{selectedQueue.queueHost}</span>
-                    <span>{selectedQueue.access}</span>
+                    <span>{defaultQueue.releaseMode}</span>
+                    <span>{defaultQueue.queueHost}</span>
+                    <span>{defaultQueue.access}</span>
                   </div>
                 ) : null}
-                {!selectedQueue?.available && selectedQueue?.reason ? <div className="mt-3 text-sm font-medium text-danger-500">{selectedQueue.reason}</div> : null}
+                {!defaultQueue?.available && defaultQueue?.reason ? <div className="mt-3 text-sm font-medium text-danger-500">{defaultQueue.reason}</div> : null}
               </div>
+              {alternateEligibleQueues.length > 0 ? (
+                <div className="text-sm text-slate-500">
+                  Other campus queues may still be available through device-side or desktop printing.
+                </div>
+              ) : null}
             </div>
           </section>
 
           <section className="ui-panel overflow-hidden">
             <div className="border-b border-line bg-mist-50/80 px-4 py-3"><div className="text-base font-semibold text-ink-950">Summary</div></div>
             <div className="space-y-3 px-4 py-4 text-sm text-slate-600">
-              <div className="flex justify-between gap-4"><span>Queue</span><span className="font-medium text-ink-950">{selectedQueue?.name ?? 'None'}</span></div>
+              <div className="flex justify-between gap-4"><span>Assigned route</span><span className="font-medium text-ink-950">{defaultQueue?.name ?? 'None'}</span></div>
               <div className="flex justify-between gap-4"><span>Copies</span><span className="font-medium text-ink-950">{draft.copies}</span></div>
               <div className="flex justify-between gap-4"><span>Page count</span><span className="font-medium text-ink-950">Inferred by backend</span></div>
-              <div className="flex justify-between gap-4"><span>Color mode</span><span className="font-medium text-ink-950">{draft.colorMode === 'color' ? 'Color' : 'Black & White'}</span></div>
-              <div className="flex justify-between gap-4"><span>Duplex</span><span className="font-medium text-ink-950">{draft.duplex ? 'Double-sided' : 'Single-sided'}</span></div>
-              <div className="flex justify-between gap-4"><span>Paper type</span><span className="font-medium text-ink-950 capitalize">{draft.paperType ?? 'Standard'}</span></div>
-              <div className="flex justify-between gap-4"><span>Release</span><span className="font-medium text-ink-950">{selectedQueue?.releaseMode ?? 'Assignment required'}</span></div>
+              <div className="flex justify-between gap-4"><span>Print settings</span><span className="font-medium text-ink-950">Queue defaults</span></div>
+              <div className="flex justify-between gap-4"><span>Release</span><span className="font-medium text-ink-950">{defaultQueue?.releaseMode ?? 'Assignment required'}</span></div>
               <div className="border-t border-line pt-4 text-slate-500">Held files clear after {profile?.retentionHours ?? 24} hours. Device storage and PIN retrieval are handled from History.</div>
             </div>
           </section>

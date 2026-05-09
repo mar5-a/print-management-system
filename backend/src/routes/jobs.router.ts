@@ -55,10 +55,6 @@ const listSchema = z.object({
 
 const submitSchema = z.object({
   copyCount: z.coerce.number().int().positive().max(25).default(1),
-  queueId: z.string().optional(),
-  colorMode: z.enum(['bw', 'color']).optional(),
-  duplex: z.preprocess((v) => v === 'true' || v === true, z.boolean()).optional(),
-  paperType: z.string().optional(),
 })
 
 router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema.extend({ userId: z.coerce.number().int().positive().optional() })), async (req, res) => {
