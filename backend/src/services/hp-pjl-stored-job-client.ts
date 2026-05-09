@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config.js'
-import type { HpPjlStoredJobResult } from '../types.js'
+import type { HpPjlConnectorHealthResult, HpPjlStoredJobResult } from '../types.js'
 
 interface StoreUploadedPdfOptions {
   uploadedPath: string
@@ -15,6 +15,36 @@ interface StoreUploadedPdfOptions {
 }
 
 export class HpPjlStoredJobClient {
+  async checkPrinterHealth({
+    printerHost,
+    printerPort,
+  }: Pick<StoreUploadedPdfOptions, 'printerHost' | 'printerPort'>): Promise<HpPjlConnectorHealthResult> {
+    const response = await fetch(
+      new URL(`/printer-health?printerHost=${encodeURIComponent(printerHost)}&printerPort=${encodeURIComponent(String(printerPort))}`, config.windowsConnector.url),
+      {
+        method: 'GET',
+        headers: connectorHeaders(),
+      },
+    )
+    const payload = await response.json().catch(() => null) as HpPjlConnectorHealthResult | { error?: string } | null
+
+    if (!response.ok) {
+      const message = payload && 'error' in payload && payload.error
+        ? payload.error
+        : `HP PJL connector health check failed with HTTP ${response.status}`
+      throw new Error(message)
+    }
+
+    if (!payload || !('ok' in payload)) {
+      throw new Error('HP PJL connector health check returned an invalid response.')
+    }
+
+    return {
+      ...payload,
+      connectorUrl: config.windowsConnector.url,
+    } as HpPjlConnectorHealthResult & { connectorUrl: string }
+  }
+
   async storeUploadedPdf({
     uploadedPath,
     originalFileName,
@@ -36,15 +66,9 @@ export class HpPjlStoredJobClient {
     form.append('copyCount', String(copyCount))
     form.append('file', new Blob([file], { type: 'application/pdf' }), path.basename(originalFileName))
 
-    const headers: Record<string, string> = {}
-
-    if (config.windowsConnector.token) {
-      headers.Authorization = `Bearer ${config.windowsConnector.token}`
-    }
-
     const response = await fetch(new URL('/store-on-device', config.windowsConnector.url), {
       method: 'POST',
-      headers,
+      headers: connectorHeaders(),
       body: form,
     })
 
@@ -66,4 +90,14 @@ export class HpPjlStoredJobClient {
       connectorUrl: config.windowsConnector.url,
     }
   }
+}
+
+function connectorHeaders() {
+  const headers: Record<string, string> = {}
+
+  if (config.windowsConnector.token) {
+    headers.Authorization = `Bearer ${config.windowsConnector.token}`
+  }
+
+  return headers
 }

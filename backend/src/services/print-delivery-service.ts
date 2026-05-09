@@ -41,6 +41,15 @@ export class PrintDeliveryService {
       }
 
       const { host, port } = parseRawSocketTarget(printer.connector_target)
+      const health = await this.hpPjlStoredJob.checkPrinterHealth({
+        printerHost: host,
+        printerPort: port,
+      })
+
+      if (!health.ok) {
+        throw new Error(`Printer preflight failed for ${host}:${port}. ${health.errors.join(' ') || 'Connector reported unhealthy status.'}`)
+      }
+
       const result = await this.hpPjlStoredJob.storeUploadedPdf({
         uploadedPath,
         originalFileName,

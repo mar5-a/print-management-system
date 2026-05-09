@@ -39,3 +39,17 @@ export interface HpPjlStoredJobResult {
   bytesSent: number
   storedAt: string
 }
+
+export interface HpPjlConnectorHealthResult {
+  ok: boolean
+  connectorMode: 'hp_pjl_stored_job'
+  connectorVersion: string
+  connectorUrl?: string
+  printerHost: string
+  printerPort: number
+  printerReachable: boolean
+  ghostscriptConfigured: boolean
+  ghostscriptBin: string
+  checkedAt: string
+  errors: string[]
+}

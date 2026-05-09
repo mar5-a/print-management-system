@@ -164,7 +164,7 @@ Health check:
 curl http://localhost:4100/health
 ```
 
-HP PJL stored-job diagnostic from the VM:
+HP PJL private personal-job diagnostic from the VM:
 
 ```powershell
 Invoke-WebRequest `
@@ -179,7 +179,7 @@ Expected printer result:
 ```text
 Retrieve from Device Memory
 -> folder PRINTSOL_TEST
--> job PJL_STORE_001
+-> job PJL_PERSONAL_001
 -> PIN 1234
 ```
 

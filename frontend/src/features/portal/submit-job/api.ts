@@ -110,9 +110,11 @@ function mapJob(job: BackendJob): PortalPrintJob {
 
 function mapStatus(status: string): PortalPrintJob['status'] {
   if (status === 'held') return 'Ready to send'
+  if (status === 'submitting_to_device_storage') return 'Sending to printer'
   if (status === 'stored_on_device') return 'Stored on printer'
   if (status === 'failed') return 'Failed'
   if (status === 'cancelled') return 'Cancelled'
+  if (status === 'expired') return 'Expired'
   if (status === 'completed') return 'Completed'
   return 'In Progress'
 }
@@ -123,6 +125,7 @@ function statusDetails(status: string) {
   if (status === 'submitting_to_device_storage') return 'Sending the job to printer memory.'
   if (status === 'sent_to_printer') return 'Submitted to the printer connector.'
   if (status === 'queued') return 'Accepted by the Windows print queue connector.'
+  if (status === 'expired') return 'Expired after the queue retention window. The backend file has been scheduled for cleanup.'
   return 'Tracked by the backend job lifecycle.'
 }
 

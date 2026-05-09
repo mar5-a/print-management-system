@@ -18,6 +18,8 @@ interface StorePdfOnDeviceOptions {
 }
 
 const esc = '\x1b'
+const pjlHoldMode = 'ON'
+const pjlHoldType = 'PRIVATE'
 
 export class HpPjlStoredJobService {
   constructor(private readonly converter = new GhostscriptPdfConverter()) {}
@@ -73,11 +75,11 @@ export class HpPjlStoredJobService {
   async sendDiagnosticStoredJob(printerHost = config.printer.host, printerPort = config.printer.port) {
     const connectorJobId = crypto.randomUUID()
     const username = 'PRINTSOL_TEST'
-    const jobName = 'PJL_STORE_001'
+    const jobName = 'PJL_PERSONAL_001'
     const postScript = Buffer.from(`%!PS-Adobe-3.0
 /Courier findfont 24 scalefont setfont
 72 720 moveto
-(HP PJL private stored job test) show
+(HP PJL private personal job test) show
 showpage
 \x04`, 'latin1')
     const payload = wrapPjlPostScript(postScript, {
@@ -126,8 +128,8 @@ function wrapPjlPostScript(
     + `@PJL SET JOBNAME = "${jobName}"\r\n`
     + `@PJL SET USERNAME = "${username}"\r\n`
     + `@PJL SET QTY = ${copyCount}\r\n`
-    + '@PJL SET HOLD = STORE\r\n'
-    + '@PJL SET HOLDTYPE = PRIVATE\r\n'
+    + `@PJL SET HOLD = ${pjlHoldMode}\r\n`
+    + `@PJL SET HOLDTYPE = ${pjlHoldType}\r\n`
     + `@PJL SET HOLDKEY = "${pin}"\r\n`
     + '@PJL ENTER LANGUAGE = POSTSCRIPT\r\n',
     'latin1',

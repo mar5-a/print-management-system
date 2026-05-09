@@ -1,6 +1,8 @@
 import { query } from '../db/pool.js'
+import { config } from '../config.js'
 import { ConflictError, NotFoundError } from '../lib/errors.js'
 import { recordAuditLog } from './audit-log.service.js'
+import { HpPjlStoredJobClient } from './hp-pjl-stored-job-client.js'
 import type { AuthenticatedUser, PaginatedResult } from '../types/api.js'
 
 interface ListPrintersFilters {
@@ -249,6 +251,35 @@ export async function getPrinterErrors(id: string) {
   return result.rows
 }
 
+export async function getPrinterConnectorHealth(id: string) {
+  const printer = await getPrinterById(id) as {
+    name: string
+    connector_type: string
+    connector_target: string | null
+  }
+
+  if (printer.connector_type !== 'hp_pjl_stored_job') {
+    return {
+      ok: false,
+      printerName: printer.name,
+      connectorType: printer.connector_type,
+      message: 'Connector health is currently implemented for HP PJL stored-job printers only.',
+    }
+  }
+
+  const { host, port } = parseRawSocketTarget(printer.connector_target)
+  const health = await new HpPjlStoredJobClient().checkPrinterHealth({
+    printerHost: host,
+    printerPort: port,
+  })
+
+  return {
+    ...health,
+    printerName: printer.name,
+    connectorType: printer.connector_type,
+  }
+}
+
 async function getPrinterInternalId(id: string) {
   const result = await query<{ id: number }>(
     `SELECT id FROM printers WHERE printer_uuid::text = $1 OR id::text = $1`,
@@ -290,5 +321,16 @@ function toPrinter(row: Record<string, unknown>) {
     toner_level: row.toner_level !== null && row.toner_level !== undefined ? Number(row.toner_level) : 100,
     created_at: row.created_at,
     updated_at: row.updated_at,
+  }
+}
+
+function parseRawSocketTarget(target: string | null) {
+  const fallback = `${config.printer.host}:${config.printer.port}`
+  const [host, portText] = (target || fallback).split(':')
+  const port = Number(portText || config.printer.port)
+
+  return {
+    host: host || config.printer.host,
+    port: Number.isFinite(port) ? port : config.printer.port,
   }
 }

@@ -116,56 +116,58 @@ export function DashboardActiveJob({
 
 export function RecentPortalJobsTable({ jobs }: { jobs: PortalPrintJob[] }) {
   return (
-    <section>
-      <div className="mb-3 flex items-center justify-between gap-4">
+    <section className="ui-panel overflow-hidden">
+      <div className="flex items-center justify-between gap-4 border-b border-line bg-mist-50/80 px-4 py-3">
         <div className="text-base font-semibold text-ink-950">Recent jobs</div>
         <Link className="ui-button-secondary px-3 py-1.5" to="/portal/history">
           <FileClock className="size-4" />
           History
         </Link>
       </div>
-      <DataTable<PortalPrintJob>
-        columns={[
-          {
-            key: 'file',
-            header: 'Document',
-            render: (job) => (
-              <div>
-                <div className="ui-table-primary-strong">{job.fileName}</div>
-                <div className="ui-table-meta mt-1">{job.id}</div>
-              </div>
-            ),
-          },
-          {
-            key: 'submitted',
-            header: 'Submitted',
-            render: (job) => (
-              <div>
-                <div className="ui-table-secondary">{job.submittedAt}</div>
-                <div className="ui-table-meta mt-1">{job.queueName}</div>
-              </div>
-            ),
-          },
-          {
-            key: 'device',
-            header: 'Device',
-            render: (job) => <span className="ui-table-secondary">{job.printerName}</span>,
-          },
-          {
-            key: 'total',
-            header: 'Total',
-            render: (job) => <span className="ui-table-secondary">{job.totalPages} pages · {formatUsd(job.cost)}</span>,
-          },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (job) => <PortalJobStatusBadge status={job.status} />,
-          },
-        ]}
-        rows={jobs.slice(0, 5)}
-        getRowKey={(job) => job.id}
-        emptyLabel="You have no print jobs yet."
-      />
+      <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+        <DataTable<PortalPrintJob>
+          columns={[
+            {
+              key: 'file',
+              header: 'Document',
+              render: (job) => (
+                <div>
+                  <div className="ui-table-primary-strong">{job.fileName}</div>
+                  <div className="ui-table-meta mt-1">{job.id}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'submitted',
+              header: 'Submitted',
+              render: (job) => (
+                <div>
+                  <div className="ui-table-secondary">{job.submittedAt}</div>
+                  <div className="ui-table-meta mt-1">{job.queueName}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'device',
+              header: 'Device',
+              render: (job) => <span className="ui-table-secondary">{job.printerName}</span>,
+            },
+            {
+              key: 'total',
+              header: 'Total',
+              render: (job) => <span className="ui-table-secondary">{job.totalPages} pages · {formatUsd(job.cost)}</span>,
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (job) => <PortalJobStatusBadge status={job.status} />,
+            },
+          ]}
+          rows={jobs.slice(0, 10)}
+          getRowKey={(job) => job.id}
+          emptyLabel="You have no print jobs yet."
+        />
+      </div>
     </section>
   )
 }

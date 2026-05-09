@@ -4,7 +4,9 @@ import type { AdminQueue, QueueLogEntry } from '@/types/admin'
 export function getPortalJobStatusClass(status: PortalJobStatus) {
   if (status === 'Completed') return 'bg-accent-100 text-accent-700'
   if (status === 'Stored on printer') return 'bg-accent-100 text-accent-700'
-  if (status === 'Failed' || status === 'Cancelled') return 'bg-danger-100 text-danger-500'
+  if (status === 'Failed') return 'bg-danger-100 text-danger-500'
+  if (status === 'Cancelled' || status === 'Expired') return 'bg-mist-50 text-slate-600'
+  if (status === 'Sending to printer') return 'bg-warn-100 text-warn-500'
   return 'bg-warn-100 text-warn-500'
 }
 

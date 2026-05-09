@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import net from 'node:net'
+import { spawn } from 'node:child_process'
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
@@ -74,6 +76,33 @@ app.get('/health', (_req, res) => {
     printerName: config.windowsPrintQueue.target,
     queueShare: config.windowsPrintQueue.share,
     printMode: config.windowsConnector.printMode,
+  })
+})
+
+app.get('/printer-health', requireConnectorToken, async (req, res) => {
+  const printerHost = optionalQueryText(req.query.printerHost) ?? config.printer.host
+  const printerPort = Number(optionalQueryText(req.query.printerPort) ?? config.printer.port)
+  const checkedPort = Number.isFinite(printerPort) ? printerPort : config.printer.port
+  const [printerResult, ghostscriptResult] = await Promise.all([
+    checkTcpReachability(printerHost, checkedPort),
+    checkGhostscript(),
+  ])
+  const errors = [
+    printerResult.error,
+    ghostscriptResult.error,
+  ].filter((error): error is string => Boolean(error))
+
+  res.json({
+    ok: printerResult.ok && ghostscriptResult.ok,
+    connectorMode: 'hp_pjl_stored_job',
+    connectorVersion: 'pjl-preflight-v1',
+    printerHost,
+    printerPort: checkedPort,
+    printerReachable: printerResult.ok,
+    ghostscriptConfigured: ghostscriptResult.ok,
+    ghostscriptBin: config.ghostscriptBin,
+    checkedAt: new Date().toISOString(),
+    errors,
   })
 })
 
@@ -264,6 +293,10 @@ function optionalBodyText(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
+function optionalQueryText(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
 function requireBodyText(value: unknown, fieldName: string) {
   const text = optionalBodyText(value)
 
@@ -272,6 +305,58 @@ function requireBodyText(value: unknown, fieldName: string) {
   }
 
   return text
+}
+
+async function checkTcpReachability(host: string, port: number, timeoutMs = 1500) {
+  return new Promise<{ ok: boolean; error?: string }>((resolve) => {
+    const socket = net.createConnection({ host, port })
+    let settled = false
+
+    function finish(ok: boolean, error?: string) {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      socket.destroy()
+      resolve({ ok, error })
+    }
+
+    socket.setTimeout(timeoutMs)
+    socket.on('connect', () => finish(true))
+    socket.on('timeout', () => finish(false, `Timed out reaching printer at ${host}:${port}`))
+    socket.on('error', (error) => finish(false, `Cannot reach printer at ${host}:${port}: ${error.message}`))
+  })
+}
+
+async function checkGhostscript(timeoutMs = 1500) {
+  return new Promise<{ ok: boolean; error?: string }>((resolve) => {
+    const child = spawn(config.ghostscriptBin, ['-version'], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
+    let settled = false
+    let stderr = ''
+    const timeout = setTimeout(() => finish(false, `Ghostscript check timed out for ${config.ghostscriptBin}`), timeoutMs)
+
+    function finish(ok: boolean, error?: string) {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      clearTimeout(timeout)
+      child.kill()
+      resolve({ ok, error })
+    }
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+    child.on('error', (error) => finish(false, `Failed to start Ghostscript (${config.ghostscriptBin}): ${error.message}`))
+    child.on('close', (code) => {
+      finish(code === 0, code === 0 ? undefined : `Ghostscript exited with code ${code}. ${stderr.trim()}`)
+    })
+  })
 }
 
 app.listen(config.windowsConnector.port, () => {

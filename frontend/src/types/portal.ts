@@ -1,7 +1,7 @@
 import type { QueueAccessScope } from './admin'
 
 export type PortalUserRole = 'Student' | 'Faculty'
-export type PortalJobStatus = 'Ready to send' | 'Stored on printer' | 'In Progress' | 'Completed' | 'Failed' | 'Cancelled'
+export type PortalJobStatus = 'Ready to send' | 'Stored on printer' | 'Sending to printer' | 'In Progress' | 'Completed' | 'Failed' | 'Cancelled' | 'Expired'
 
 export interface PortalUserProfile {
   id: string

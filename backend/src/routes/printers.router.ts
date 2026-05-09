@@ -58,4 +58,8 @@ router.get('/:id/errors', requireRole('admin'), async (req, res) => {
   ok(res, await printersService.getPrinterErrors(String(req.params.id)))
 })
 
+router.get('/:id/connector-health', requireRole('admin', 'technician'), async (req, res) => {
+  ok(res, await printersService.getPrinterConnectorHealth(String(req.params.id)))
+})
+
 export { router as printersRouter }

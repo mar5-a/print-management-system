@@ -2,7 +2,8 @@ import fs from 'node:fs/promises'
 import crypto from 'node:crypto'
 import { PDFDocument } from 'pdf-lib'
 import { query, transaction } from '../db/pool.js'
-import { ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
+import { config } from '../config.js'
+import { ForbiddenError, NotFoundError, ServiceUnavailableError, ValidationError } from '../lib/errors.js'
 import { decryptDevicePin, encryptDevicePin, generateDevicePin } from './job-pin-secrets.js'
 import { PrintDeliveryService } from './print-delivery-service.js'
 import { resolveDefaultQueueForUser } from './queues.service.js'
@@ -212,6 +213,7 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
              device_storage_username = $1::text,
              device_storage_job_name = $2::text,
              device_storage_pin_secret = $3::text,
+             failure_reason = NULL,
              updated_at = NOW()
          WHERE id = $4::bigint`,
         [deviceUsername, deviceJobName, encryptedPin, job.id],
@@ -226,6 +228,22 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
             username: deviceUsername,
             jobName: deviceJobName,
             printerId: job.printer_id,
+          }),
+        ],
+      )
+      await client.query(
+        `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message, metadata)
+         VALUES ($1::bigint, $2::bigint, 'device_storage_attempt_started', 'api', 'Connector preflight and HP device-storage submission started.', $3::jsonb)`,
+        [
+          job.id,
+          user.id,
+          JSON.stringify({
+            printerId: job.printer_id,
+            printerName: job.printer_name,
+            connectorType: job.connector_type,
+            connectorTarget: job.connector_target,
+            connectorUrl: config.windowsConnector.url,
+            retryable: true,
           }),
         ],
       )
@@ -272,6 +290,7 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
              device_storage_submitted_at = CASE WHEN $1::text = 'stored_on_device' THEN NOW() ELSE device_storage_submitted_at END,
              device_storage_pin_secret = $5::text,
              device_storage_connector_job_id = $6::text,
+             failure_reason = NULL,
              updated_at = NOW()
          WHERE id = $7::bigint`,
         [
@@ -335,7 +354,7 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
       deviceRelease: null,
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Print connector failed'
+    const failure = classifyDeviceStorageFailure(error, job)
 
     if (sentToDeviceStorage) {
       await query(
@@ -362,7 +381,7 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
           job.id,
           user.id,
           'Job was submitted to HP device memory; backend recovered status after a post-send update failure.',
-          JSON.stringify({ recoveredFromError: message, username: deviceUsername, jobName: deviceJobName }),
+          JSON.stringify({ recoveredFromError: failure.rawMessage, username: deviceUsername, jobName: deviceJobName }),
         ],
       )
 
@@ -374,12 +393,24 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
 
     await query(
       `UPDATE print_jobs SET status = 'failed', failure_reason = $1::text, updated_at = NOW() WHERE id = $2::bigint`,
-      [message, job.id],
+      [failure.userMessage, job.id],
     )
     await query(
-      `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message)
-       VALUES ($1::bigint, $2::bigint, 'failed', 'api', $3::text)`,
-      [job.id, user.id, message],
+      `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message, metadata)
+       VALUES ($1::bigint, $2::bigint, 'device_storage_failed', 'api', $3::text, $4::jsonb)`,
+      [
+        job.id,
+        user.id,
+        failure.userMessage,
+        JSON.stringify({
+          code: failure.code,
+          rawMessage: failure.rawMessage,
+          printerId: job.printer_id,
+          printerName: job.printer_name,
+          connectorTarget: job.connector_target,
+          retryable: failure.retryable,
+        }),
+      ],
     )
     await query(
       `UPDATE print_logs
@@ -387,7 +418,8 @@ export async function storeJobOnDevice(id: string, user: AuthenticatedUser) {
        WHERE print_job_id = $1::bigint`,
       [job.id],
     )
-    throw error
+    await createDeviceStorageFailureAlert(job, failure).catch(() => {})
+    throw new ServiceUnavailableError(failure.userMessage, failure.code.toUpperCase())
   }
 }
 
@@ -413,8 +445,13 @@ export async function getDevicePin(id: string, user: AuthenticatedUser) {
     throw new ForbiddenError()
   }
 
+  if (job.status === 'submitting_to_device_storage' && job.device_storage_pin_secret && job.device_storage_username && job.device_storage_job_name) {
+    await recoverSubmittedDeviceStorageJob(job, 'pin_reveal_recovery')
+    job.status = 'stored_on_device'
+  }
+
   if (job.status !== 'stored_on_device') {
-    throw new ValidationError(`Job status is '${job.status}', must be 'stored_on_device' to reveal device PIN`)
+    throw new ValidationError(`Job status is '${job.status}', must be 'stored_on_device' or recoverable to reveal device PIN`)
   }
 
   if (job.expires_at && new Date(String(job.expires_at)).getTime() <= Date.now()) {
@@ -505,8 +542,8 @@ async function getReleaseCandidate(id: string, user: AuthenticatedUser, requireH
     throw new ForbiddenError()
   }
 
-  if (requireHeld && job.status !== 'held') {
-    throw new ValidationError(`Job status is '${job.status}', must be 'held' to release`)
+  if (requireHeld && !['held', 'failed'].includes(String(job.status))) {
+    throw new ValidationError(`Job status is '${job.status}', must be 'held' or 'failed' to store on device`)
   }
 
   return job
@@ -617,6 +654,121 @@ function readConnectorJobId(details: unknown) {
   }
 
   return null
+}
+
+async function recoverSubmittedDeviceStorageJob(job: Record<string, unknown>, source: string) {
+  await query(
+    `UPDATE print_jobs
+     SET status = 'stored_on_device',
+         printer_id = COALESCE(printer_id, $1::bigint),
+         release_channel = COALESCE(release_channel, 'web'),
+         released_at = COALESCE(released_at, NOW()),
+         final_cost = COALESCE(final_cost, estimated_cost),
+         device_storage_submitted_at = COALESCE(device_storage_submitted_at, NOW()),
+         failure_reason = NULL,
+         updated_at = NOW()
+     WHERE id = $2::bigint
+       AND status = 'submitting_to_device_storage'`,
+    [job.printer_id, job.id],
+  )
+  await query(
+    `INSERT INTO print_job_events (print_job_id, actor_user_id, event_type, event_source, message, metadata)
+     VALUES ($1::bigint, NULL, 'submitted_to_device_storage', $2::text, 'Backend recovered a device-storage submission that was left in progress.', $3::jsonb)`,
+    [
+      job.id,
+      source,
+      JSON.stringify({
+        username: job.device_storage_username,
+        jobName: job.device_storage_job_name,
+        recoveredFromStatus: job.status,
+      }),
+    ],
+  )
+}
+
+interface DeviceStorageFailure {
+  code: 'printer_unreachable' | 'connector_unreachable' | 'device_storage_failed'
+  userMessage: string
+  adminMessage: string
+  rawMessage: string
+  retryable: boolean
+  severity: 'medium' | 'high'
+}
+
+function classifyDeviceStorageFailure(error: unknown, job: Record<string, unknown>): DeviceStorageFailure {
+  const rawMessage = error instanceof Error ? error.message : 'Print connector failed'
+  const lowerMessage = rawMessage.toLowerCase()
+  const printerName = String(job.printer_name ?? 'Selected printer')
+  const connectorTarget = job.connector_target ? String(job.connector_target) : 'unknown target'
+
+  if (
+    lowerMessage.includes('timed out sending stored job')
+    || lowerMessage.includes('timed out reaching printer')
+    || lowerMessage.includes('cannot reach printer')
+    || lowerMessage.includes('timeout')
+    || lowerMessage.includes('etimedout')
+    || lowerMessage.includes('ehostunreach')
+    || lowerMessage.includes('enetunreach')
+  ) {
+    return {
+      code: 'printer_unreachable',
+      userMessage: 'Printer unavailable. Your job is still saved. Try again later.',
+      adminMessage: `${printerName} is unreachable at ${connectorTarget}. Raw connector error: ${rawMessage}`,
+      rawMessage,
+      retryable: true,
+      severity: 'high',
+    }
+  }
+
+  if (
+    lowerMessage.includes('fetch failed')
+    || lowerMessage.includes('econnrefused')
+    || lowerMessage.includes('connector failed')
+    || lowerMessage.includes('failed with http 401')
+    || lowerMessage.includes('failed with http 403')
+    || lowerMessage.includes('failed with http 5')
+  ) {
+    return {
+      code: 'connector_unreachable',
+      userMessage: 'Printer connector unavailable. Your job is still saved. Try again later.',
+      adminMessage: `The printer connector could not submit ${printerName}. Raw connector error: ${rawMessage}`,
+      rawMessage,
+      retryable: true,
+      severity: 'high',
+    }
+  }
+
+  return {
+    code: 'device_storage_failed',
+    userMessage: 'Could not store this job on the printer. Your job is still saved for retry.',
+    adminMessage: `${printerName} rejected or failed the device-storage submission. Raw connector error: ${rawMessage}`,
+    rawMessage,
+    retryable: true,
+    severity: 'medium',
+  }
+}
+
+async function createDeviceStorageFailureAlert(job: Record<string, unknown>, failure: DeviceStorageFailure) {
+  await query(
+    `INSERT INTO device_errors (
+       printer_id,
+       queue_id,
+       error_code,
+       severity,
+       status,
+       title,
+       description
+     )
+     VALUES ($1::bigint, $2::bigint, $3::text, $4::text, 'open', $5::text, $6::text)`,
+    [
+      job.printer_id,
+      job.queue_id,
+      failure.code,
+      failure.severity,
+      failure.code === 'printer_unreachable' ? 'Printer unreachable during secure-release submission' : 'Printer connector failed during secure-release submission',
+      failure.adminMessage,
+    ],
+  )
 }
 
 function redactDeliveryMetadata(delivery: unknown) {

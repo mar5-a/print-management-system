@@ -10,6 +10,7 @@ import { validateQuery } from '../middleware/validate.js'
 import { accepted, created, ok, paginated } from '../lib/response.js'
 import { BadRequestError } from '../lib/errors.js'
 import * as jobsService from '../services/jobs.service.js'
+import { cleanupExpiredJobsAndFiles } from '../services/job-cleanup.service.js'
 
 const router = Router()
 router.use(authenticate)
@@ -65,6 +66,10 @@ router.get('/', requireRole('admin', 'technician'), validateQuery(listSchema.ext
 router.get('/my', validateQuery(listSchema), async (req, res) => {
   const filters = (req as typeof req & { parsedQuery: z.infer<typeof listSchema> }).parsedQuery
   paginated(res, await jobsService.listMyJobs(req.user!, filters))
+})
+
+router.post('/cleanup', requireRole('admin', 'technician'), async (_req, res) => {
+  ok(res, await cleanupExpiredJobsAndFiles())
 })
 
 router.post('/', upload.single('file'), async (req, res) => {

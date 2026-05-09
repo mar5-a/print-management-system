@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/composite/page-header'
 import { buildLinePoints } from '@/lib/charts'
 import { formatUsd } from '@/lib/formatters'
 import { DashboardActiveJob, PortalMetric, RecentPortalJobsTable } from '@/features/portal/shared/components'
+import { PortalFeedbackBanner } from '@/features/portal/shared/portal-feedback'
 import { cancelDashboardJob, getPortalDashboardSnapshot } from './api'
 
 const usageLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -83,9 +84,12 @@ export function PortalDashboardScreen() {
       />
 
       {error ? (
-        <div className="mb-4 border border-danger-500/30 bg-danger-100 px-4 py-3 text-sm text-danger-500">
-          {error}
-        </div>
+        <PortalFeedbackBanner
+          tone="error"
+          title="Something went wrong"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -94,7 +98,7 @@ export function PortalDashboardScreen() {
             <div className="text-base font-semibold text-ink-950">Active jobs</div>
             <div className="text-sm text-slate-500">{activeJobs.length} active</div>
           </div>
-          <div className="px-4 py-2">
+          <div className="px-4 py-2" style={{ maxHeight: 320, overflowY: 'auto' }}>
             {activeJobs.length === 0 ? (
               <div className="py-8 text-sm text-slate-500">No active jobs right now.</div>
             ) : (
