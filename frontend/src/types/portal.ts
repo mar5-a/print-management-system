@@ -30,8 +30,6 @@ export interface PortalQueueOption {
   submissionPath: string
   reason?: string
   costPerPage: number
-  supportsColor: boolean
-  supportsDuplex: boolean
 }
 
 export interface PortalPrintJob {
@@ -59,10 +57,6 @@ export interface PortalPrintJob {
 export interface PortalSubmissionDraft {
   fileName: string
   copies: number
-  queueId?: string
-  colorMode?: 'bw' | 'color'
-  duplex?: boolean
-  paperType?: string
 }
 
 export interface PortalDeviceReleaseInfo {
