@@ -353,7 +353,7 @@ function DeviceReleasePanel({
         <li>
           <span className="text-slate-500">4.</span>{' '}
           Enter PIN:{' '}
-          <span className="inline-flex items-center justify-center min-w-[5rem] rounded-sm bg-white px-2.5 py-1 font-mono text-base font-semibold tracking-widest text-ink-950 ring-1 ring-line">
+          <span className="inline-flex items-center justify-center min-w-[5rem] rounded-sm bg-panel px-2.5 py-1 font-mono text-base font-semibold tracking-widest text-ink-950 ring-1 ring-line">
             {release ? release.pin : '----'}
           </span>
         </li>

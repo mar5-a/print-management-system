@@ -8,10 +8,10 @@ interface OperationalEventsTableProps {
 
 export function OperationalEventsTable({ rows, isLoading, error }: OperationalEventsTableProps) {
   return (
-    <div className="mt-4 overflow-hidden border border-line bg-white">
+    <div className="mt-4 overflow-hidden border border-line bg-panel">
       <div className="max-h-[17rem] overflow-y-auto">
         <table className="min-w-full table-fixed border-collapse">
-          <thead className="sticky top-0 z-10 bg-mist-50">
+          <thead className="sticky top-0 z-10 bg-muted">
             <tr>
               <th className="ui-table-head w-[24%] text-left">Type</th>
               <th className="ui-table-head w-[26%] text-left">Action</th>

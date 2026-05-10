@@ -12,7 +12,7 @@ export function DialogOverlay({
   className,
   ...props
 }: DialogPrimitive.DialogOverlayProps) {
-  return <DialogPrimitive.Overlay className={cn('fixed inset-0 bg-ink-950/35', className)} {...props} />
+  return <DialogPrimitive.Overlay className={cn('fixed inset-0 bg-ink-950/45 backdrop-blur-[1px]', className)} {...props} />
 }
 
 export function DialogContent({
@@ -25,13 +25,13 @@ export function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-[min(92vw,720px)] -translate-x-1/2 -translate-y-1/2 border border-line bg-white shadow-xl',
+          'fixed left-1/2 top-1/2 z-50 w-[min(92vw,720px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-line bg-panel shadow-[0_26px_54px_-26px_rgba(4,18,36,0.7)]',
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 text-slate-500">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground">
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

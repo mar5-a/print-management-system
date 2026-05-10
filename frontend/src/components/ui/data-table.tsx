@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { FeedbackState } from '@/components/ui/feedback-state'
 import { cn } from '../../lib/utils'
 
 interface Column<T> {
@@ -16,6 +17,8 @@ interface DataTableProps<T> {
   getRowKey: (row: T) => string
   onRowClick?: (row: T) => void
   emptyLabel: string
+  isLoading?: boolean
+  errorMessage?: string | null
 }
 
 export function DataTable<T>({
@@ -24,6 +27,8 @@ export function DataTable<T>({
   getRowKey,
   onRowClick,
   emptyLabel,
+  isLoading = false,
+  errorMessage = null,
 }: DataTableProps<T>) {
   return (
     <div className="ui-panel overflow-hidden">
@@ -43,10 +48,16 @@ export function DataTable<T>({
             {rows.length === 0 ? (
               <tr>
                 <td
-                  className="px-4 py-10 text-center text-sm text-slate-500"
+                  className="px-4 py-5"
                   colSpan={columns.length + (onRowClick ? 1 : 0)}
                 >
-                  {emptyLabel}
+                  {errorMessage ? (
+                    <FeedbackState tone="error" compact title="Could not load data" message={errorMessage} />
+                  ) : isLoading ? (
+                    <FeedbackState tone="loading" compact title="Loading" message="Fetching table rows." />
+                  ) : (
+                    <FeedbackState tone="empty" compact title="No results" message={emptyLabel} />
+                  )}
                 </td>
               </tr>
             ) : (

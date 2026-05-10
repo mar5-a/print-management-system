@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { FileText } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Download } from 'lucide-react'
 import {
   listRecentPrintRows,
   type PrintLogPage,
@@ -19,16 +19,30 @@ const defaultPrintLogPage: PrintLogPage = {
   deviceOptions: [],
 }
 
-export function RecentPrintLogsPanel() {
+type RecentPrintLogsPanelProps = {
+  externalSearch?: string
+  onTotalChange?: (total: number) => void
+}
+
+export function RecentPrintLogsPanel({ externalSearch, onTotalChange }: RecentPrintLogsPanelProps) {
   const [printLogs, setPrintLogs] = useState<PrintLogPage>(defaultPrintLogPage)
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [search, setSearch] = useState(externalSearch ?? '')
+  const [debouncedSearch, setDebouncedSearch] = useState(externalSearch ?? '')
   const [status, setStatus] = useState('all')
   const [device, setDevice] = useState('all')
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof externalSearch !== 'string') {
+      return
+    }
+
+    setSearch(externalSearch)
+    setPage(1)
+  }, [externalSearch])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -55,6 +69,7 @@ export function RecentPrintLogsPanel() {
 
         if (isMounted) {
           setPrintLogs(nextPrintLogs)
+          onTotalChange?.(nextPrintLogs.total)
           setError(null)
         }
       } catch (nextError) {
@@ -73,7 +88,7 @@ export function RecentPrintLogsPanel() {
     return () => {
       isMounted = false
     }
-  }, [debouncedSearch, status, device, page, limit])
+  }, [debouncedSearch, status, device, page, limit, onTotalChange])
 
   function handleSearchChange(value: string) {
     setSearch(value)
@@ -95,30 +110,73 @@ export function RecentPrintLogsPanel() {
     setPage(1)
   }
 
+  const canExport = !isLoading && printLogs.rows.length > 0
+  const exportFilename = useMemo(() => {
+    const now = new Date()
+    const formatted = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+
+    return `print-logs-${formatted}.csv`
+  }, [])
+
+  function handleExportCsv() {
+    if (!canExport) {
+      return
+    }
+
+    const headers = ['Time', 'User', 'Device', 'Pages', 'Status', 'Cost']
+    const lines = printLogs.rows.map((row) => [row.time, row.user, row.device, row.pages, row.status, row.cost])
+    const csv = [headers, ...lines]
+      .map((line) => line.map((field) => escapeCsvField(String(field))).join(','))
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+
+    anchor.href = url
+    anchor.download = exportFilename
+    anchor.click()
+
+    window.URL.revokeObjectURL(url)
+  }
+
   return (
     <section className="ui-panel overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b border-line bg-white px-5 py-4">
-        <div className="text-base font-semibold text-ink-950">Recent print logs</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-mist-50/70 px-4 py-3.5">
+        <div>
+          <div className="text-base font-semibold text-ink-950">Recent print logs</div>
+          <div className="mt-1 text-xs text-slate-500">{printLogs.total.toLocaleString()} records</div>
+        </div>
 
-        <button className="ui-button-secondary px-3 py-1.5">
-          <FileText className="size-4" />
-          Export print logs
+        <button
+          className="ui-button-secondary min-h-9 px-3 py-1.5 text-xs"
+          type="button"
+          onClick={handleExportCsv}
+          disabled={!canExport}
+          title={canExport ? 'Export current table rows to CSV' : 'No rows to export'}
+        >
+          <Download className="size-3.5" />
+          Export CSV
         </button>
       </div>
 
-      <div className="px-5 py-4">
+      <div className="px-4 py-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(14rem,1fr)_minmax(12rem,0.9fr)_minmax(12rem,0.9fr)]">
-          <PrintLogSearchInput value={search} onChange={handleSearchChange} />
+          <PrintLogSearchInput value={search} onChange={handleSearchChange} placeholder="Search users, devices..." />
           <PrintLogFilterSelect
             ariaLabel="Filter print logs by status"
-            placeholder="Filter by status"
+            placeholder="All statuses"
             value={status}
             options={printLogs.statusOptions}
             onChange={handleStatusChange}
           />
           <PrintLogFilterSelect
             ariaLabel="Filter print logs by device"
-            placeholder="Filter by device"
+            placeholder="All printers"
             value={device}
             options={printLogs.deviceOptions}
             onChange={handleDeviceChange}
@@ -138,4 +196,12 @@ export function RecentPrintLogsPanel() {
       </div>
     </section>
   )
+}
+
+function escapeCsvField(value: string) {
+  if (!/[",\n]/.test(value)) {
+    return value
+  }
+
+  return `"${value.replaceAll('"', '""')}"`
 }

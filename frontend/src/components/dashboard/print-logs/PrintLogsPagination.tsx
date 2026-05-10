@@ -24,16 +24,16 @@ export function PrintLogsPagination({
   const pages = buildVisiblePages(page, totalPages)
 
   return (
-    <div className="mt-5 flex flex-col gap-4 text-sm text-slate-600 lg:flex-row lg:items-center lg:justify-between">
+    <div className="mt-4 flex flex-col gap-3 text-sm text-slate-600 xl:flex-row xl:items-center xl:justify-between">
       <div>
-        Showing {firstResult} to {lastResult} of {total} results
+        Showing {firstResult} to {lastResult} of {total} logs
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             aria-label="Previous page"
-            className="flex size-9 items-center justify-center border border-transparent text-slate-600 transition hover:border-line disabled:cursor-not-allowed disabled:text-slate-300"
+            className="flex size-8 items-center justify-center rounded-lg border border-transparent text-slate-600 transition hover:border-line hover:bg-mist-50 disabled:cursor-not-allowed disabled:text-slate-300"
             disabled={page <= 1}
             type="button"
             onClick={() => onPageChange(page - 1)}
@@ -43,7 +43,7 @@ export function PrintLogsPagination({
 
           {pages.map((item, index) =>
             item === 'gap' ? (
-              <span key={`${item}-${index}`} className="px-2 text-slate-500">
+              <span key={`${item}-${index}`} className="px-1.5 text-slate-500">
                 ...
               </span>
             ) : (
@@ -51,8 +51,8 @@ export function PrintLogsPagination({
                 key={item}
                 className={
                   item === page
-                    ? 'flex size-9 items-center justify-center border border-accent-500 bg-accent-100 text-accent-700'
-                    : 'flex size-9 items-center justify-center border border-transparent text-slate-600 transition hover:border-line'
+                    ? 'flex size-8 items-center justify-center rounded-lg border border-accent-500 bg-accent-100 text-xs font-semibold text-accent-700'
+                    : 'flex size-8 items-center justify-center rounded-lg border border-transparent text-xs font-medium text-slate-600 transition hover:border-line hover:bg-mist-50'
                 }
                 type="button"
                 onClick={() => onPageChange(item)}
@@ -64,7 +64,7 @@ export function PrintLogsPagination({
 
           <button
             aria-label="Next page"
-            className="flex size-9 items-center justify-center border border-transparent text-slate-600 transition hover:border-line disabled:cursor-not-allowed disabled:text-slate-300"
+            className="flex size-8 items-center justify-center rounded-lg border border-transparent text-slate-600 transition hover:border-line hover:bg-mist-50 disabled:cursor-not-allowed disabled:text-slate-300"
             disabled={page >= totalPages}
             type="button"
             onClick={() => onPageChange(page + 1)}
@@ -75,13 +75,13 @@ export function PrintLogsPagination({
 
         <select
           aria-label="Rows per page"
-          className="h-10 border border-line bg-white px-3 text-sm text-slate-600 outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/10"
+          className="h-9 rounded-lg border border-line bg-panel px-2.5 text-xs text-slate-600 outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20"
           value={limit}
           onChange={(event) => onLimitChange(Number(event.currentTarget.value))}
         >
           {limitOptions.map((option) => (
             <option key={option} value={option}>
-              {option} per page
+              {option} / page
             </option>
           ))}
         </select>

@@ -1,57 +1,153 @@
 @import "tailwindcss";
+@import "@fontsource/outfit/400.css";
+@import "@fontsource/outfit/500.css";
+@import "@fontsource/outfit/600.css";
+@import "@fontsource/outfit/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
 
-@theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+:root {
+  --background: #f1f4f6;
+  --foreground: #1c2430;
+  --muted: #e7ecf0;
+  --muted-foreground: #5f6f7f;
+  --panel: #ffffff;
+  --panel-foreground: #1c2430;
+  --border: #d3dce3;
 
-  --color-ink-950: #08111d;
-  --color-ink-900: #101c2b;
-  --color-ink-800: #1a2a3c;
-  --color-slate-700: #3f546f;
-  --color-slate-600: #59718e;
-  --color-slate-500: #7590ab;
-  --color-slate-300: #bed0df;
-  --color-slate-200: #d9e3ec;
-  --color-slate-100: #edf2f6;
-  --color-mist-100: #f5f7fa;
-  --color-mist-50: #f9fbfc;
-  --color-panel: #ffffff;
-  --color-line: #dbe4ec;
-  --color-accent-700: #0f7a4b;
-  --color-accent-600: #168b58;
-  --color-accent-500: #1ca86a;
-  --color-accent-100: #e9f7ef;
-  --color-warn-500: #c97b2b;
-  --color-warn-100: #fff1df;
-  --color-danger-500: #c84f4f;
-  --color-danger-100: #fdeaea;
+  --accent-700: #106a52;
+  --accent-600: #14785d;
+  --accent-500: #1d9370;
+  --accent-100: #e2f1eb;
+
+  --info-700: #1f6fa8;
+  --info-500: #2a87ca;
+  --info-100: #e4f1fb;
+  --violet-700: #6f58c9;
+  --violet-500: #8b76dc;
+  --violet-100: #ece8fb;
+
+  --warn-500: #b7791f;
+  --warn-100: #fff1db;
+  --danger-500: #c24343;
+  --danger-100: #fee7e7;
+
+  --topbar: #edf2f5;
+  --topbar-foreground: #1c2430;
+  --topbar-muted: #627081;
+  --topbar-border: #d3dce3;
+
+  --sidebar: #f8fbff;
+  --sidebar-foreground: #112235;
+  --sidebar-muted: #eef4fa;
+  --sidebar-muted-foreground: #5f738a;
+  --sidebar-border: #d4e0ec;
+  --sidebar-accent: #167b5e;
+  --sidebar-accent-border: #106a52;
+  --sidebar-accent-foreground: #f4fffc;
+
+  --ambient-soft-a: #e8f1ec;
+  --ambient-soft-b: #e8edf2;
+}
+
+html.dark {
+  --background: #0d0d0f;
+  --foreground: #f4f4f5;
+  --muted: #1a1a1f;
+  --muted-foreground: #a1a1aa;
+  --panel: #151518;
+  --panel-foreground: #f4f4f5;
+  --border: #2a2a32;
+
+  --accent-700: #7c52e9;
+  --accent-600: #8b5cf6;
+  --accent-500: #a78bfa;
+  --accent-100: #211a35;
+
+  --info-700: #6aa3d4;
+  --info-500: #7cb4e5;
+  --info-100: #202734;
+  --violet-700: #a78bfa;
+  --violet-500: #c4b5fd;
+  --violet-100: #211a35;
+
+  --warn-500: #f59e0b;
+  --warn-100: rgba(245, 158, 11, 0.14);
+  --danger-500: #f43f5e;
+  --danger-100: rgba(244, 63, 94, 0.14);
+
+  --topbar: #111113;
+  --topbar-foreground: #f4f4f5;
+  --topbar-muted: #a1a1aa;
+  --topbar-border: #24242b;
+
+  --sidebar: #111113;
+  --sidebar-foreground: #f4f4f5;
+  --sidebar-muted: #1a1a1f;
+  --sidebar-muted-foreground: #a1a1aa;
+  --sidebar-border: #24242b;
+  --sidebar-accent: #211a35;
+  --sidebar-accent-border: #3b2c63;
+  --sidebar-accent-foreground: #ddd6fe;
+
+  --ambient-soft-a: #131317;
+  --ambient-soft-b: #101015;
+}
+
+@theme inline {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-panel: var(--panel);
+  --color-line: var(--border);
+
+  --color-ink-950: var(--foreground);
+  --color-ink-900: color-mix(in oklab, var(--foreground) 92%, white 8%);
+  --color-ink-800: color-mix(in oklab, var(--foreground) 82%, white 18%);
+  --color-slate-700: color-mix(in oklab, var(--muted-foreground) 90%, var(--foreground) 10%);
+  --color-slate-600: var(--muted-foreground);
+  --color-slate-500: color-mix(in oklab, var(--muted-foreground) 88%, white 12%);
+  --color-slate-300: color-mix(in oklab, var(--border) 85%, white 15%);
+  --color-slate-200: color-mix(in oklab, var(--border) 90%, white 10%);
+  --color-slate-100: color-mix(in oklab, var(--muted) 92%, white 8%);
+  --color-mist-100: color-mix(in oklab, var(--background) 86%, white 14%);
+  --color-mist-50: color-mix(in oklab, var(--background) 72%, white 28%);
+
+  --color-accent-700: var(--accent-700);
+  --color-accent-600: var(--accent-600);
+  --color-accent-500: var(--accent-500);
+  --color-accent-100: var(--accent-100);
+  --color-info-700: var(--info-700);
+  --color-info-500: var(--info-500);
+  --color-info-100: var(--info-100);
+  --color-violet-700: var(--violet-700);
+  --color-violet-500: var(--violet-500);
+  --color-violet-100: var(--violet-100);
+  --color-warn-500: var(--warn-500);
+  --color-warn-100: var(--warn-100);
+  --color-danger-500: var(--danger-500);
+  --color-danger-100: var(--danger-100);
+
+  --color-topbar: var(--topbar);
+  --color-topbar-foreground: var(--topbar-foreground);
+  --color-topbar-muted: var(--topbar-muted);
+  --color-topbar-border: var(--topbar-border);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-border: var(--sidebar-accent-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 }
 
 @layer base {
-  :root {
-    --background: #f5f7fa;
-    --foreground: #08111d;
-    --border: #dbe4ec;
-    --input: #dbe4ec;
-    --ring: rgba(15, 122, 75, 0.18);
-    --primary: #08111d;
-    --primary-foreground: #ffffff;
-    --secondary: #ffffff;
-    --secondary-foreground: #08111d;
-    --muted: #f9fbfc;
-    --muted-foreground: #59718e;
-    --accent: #e9f7ef;
-    --accent-foreground: #0f7a4b;
-    --destructive: #c84f4f;
-    --destructive-foreground: #ffffff;
-    color: #08111d;
-    background: #f5f7fa;
-    font-family: var(--font-sans);
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
   * {
     box-sizing: border-box;
   }
@@ -65,8 +161,19 @@
   body {
     margin: 0;
     min-width: 320px;
-    background: #f5f7fa;
-    color: #08111d;
+    background:
+      radial-gradient(1200px 600px at 0% -20%, var(--ambient-soft-a) 0%, transparent 65%),
+      radial-gradient(1000px 500px at 100% -10%, var(--ambient-soft-b) 0%, transparent 60%),
+      var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .dark .bg-white {
+    background-color: var(--panel);
   }
 
   button,
@@ -93,59 +200,59 @@
   }
 
   .ui-panel {
-    @apply border border-line bg-panel shadow-none;
+    @apply rounded-lg border border-line bg-panel shadow-[0_10px_24px_-20px_rgba(24,28,38,0.32)];
   }
 
   .ui-panel-muted {
-    @apply border border-line bg-mist-50 shadow-none;
+    @apply rounded-lg border border-line bg-muted shadow-none;
   }
 
   .ui-heading {
-    @apply text-xs font-semibold leading-5 tracking-normal text-slate-600;
+    @apply text-xs font-semibold leading-5 tracking-normal text-muted-foreground;
   }
 
   .ui-kicker {
-    @apply text-xs font-semibold uppercase tracking-[0.08em] text-slate-500;
+    @apply text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase;
   }
 
   .ui-detail-label {
-    @apply text-xs font-semibold leading-5 tracking-normal text-slate-600;
+    @apply text-xs font-semibold leading-5 tracking-normal text-muted-foreground;
   }
 
   .ui-detail-title {
-    @apply text-[0.95rem] font-semibold leading-5 text-ink-950;
+    @apply text-[0.95rem] font-semibold leading-5 text-foreground;
   }
 
   .ui-detail-hint {
-    @apply text-[0.85rem] leading-5 text-slate-600;
+    @apply text-[0.85rem] leading-5 text-muted-foreground;
   }
 
   .ui-checkbox-line {
-    @apply flex items-center gap-2 text-sm text-ink-950;
+    @apply flex items-center gap-2 text-sm text-foreground;
   }
 
   .ui-detail-actions {
-    @apply flex flex-col gap-2 border border-line bg-mist-50 px-4 py-3 xl:flex-row xl:items-center xl:justify-end;
+    @apply flex flex-col gap-2 rounded-lg border border-line bg-muted px-4 py-3 xl:flex-row xl:items-center xl:justify-end;
   }
 
   .ui-input {
-    @apply h-9 w-full rounded-none border border-line bg-white px-2.5 text-[0.875rem] text-ink-950 outline-none transition placeholder:text-slate-500 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/10;
+    @apply h-10 w-full rounded-md border border-line bg-panel px-3 text-[0.875rem] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20;
   }
 
   .ui-select {
-    @apply h-9 rounded-none border border-line bg-white px-2.5 text-[0.875rem] text-ink-950 outline-none transition focus:border-accent-500 focus:ring-2 focus:ring-accent-500/10;
+    @apply h-10 rounded-md border border-line bg-panel px-3 text-[0.875rem] text-foreground outline-none transition focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20;
   }
 
   .ui-textarea {
-    @apply min-h-24 w-full rounded-none border border-line bg-white px-2.5 py-2 text-[0.875rem] leading-5 text-ink-950 outline-none transition placeholder:text-slate-500 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/10;
+    @apply min-h-24 w-full rounded-md border border-line bg-panel px-3 py-2.5 text-[0.875rem] leading-5 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20;
   }
 
   .ui-tab {
-    @apply relative border-b border-transparent px-1 pb-2.5 text-sm font-medium text-slate-600 transition hover:text-ink-950;
+    @apply relative border-b border-transparent px-1 pb-2.5 text-sm font-medium text-muted-foreground transition hover:text-foreground;
   }
 
   .ui-tab-active {
-    @apply text-ink-950;
+    @apply text-foreground;
   }
 
   .ui-table-cell {
@@ -153,19 +260,19 @@
   }
 
   .ui-table-head {
-    @apply border-b border-line bg-mist-50 px-3 py-2 text-xs font-semibold tracking-normal text-slate-600;
+    @apply border-b border-line bg-muted px-3 py-2 text-xs font-semibold tracking-normal text-muted-foreground;
   }
 
   .ui-table-primary {
-    @apply text-ink-950;
+    @apply text-foreground;
   }
 
   .ui-table-primary-strong {
-    @apply font-semibold text-ink-950;
+    @apply font-semibold text-foreground;
   }
 
   .ui-table-primary-mono {
-    @apply font-mono text-xs text-ink-950;
+    @apply font-mono text-xs text-foreground;
   }
 
   .ui-table-secondary {
@@ -177,26 +284,26 @@
   }
 
   .ui-table-meta {
-    @apply text-[0.8125rem] text-slate-500;
+    @apply text-[0.8125rem] text-muted-foreground;
   }
 
   .ui-button {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-none border border-ink-950 bg-ink-950 px-3.5 py-1.5 text-[0.875rem] font-semibold leading-5 text-white transition hover:border-accent-700 hover:bg-accent-700;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-accent-600 bg-accent-600 px-3.5 py-2 text-[0.875rem] font-semibold leading-5 text-white transition hover:border-accent-700 hover:bg-accent-700 active:scale-[0.98];
   }
 
   .ui-button-secondary {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-none border border-line bg-white px-3.5 py-1.5 text-[0.875rem] font-medium leading-5 text-ink-950 transition hover:border-slate-300 hover:bg-mist-50;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-panel px-3.5 py-2 text-[0.875rem] font-medium leading-5 text-foreground transition hover:border-slate-300 hover:bg-muted active:scale-[0.98];
   }
 
   .ui-button-ghost {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-none border border-transparent bg-transparent px-3 py-1.5 text-[0.875rem] font-medium leading-5 text-slate-600 transition hover:bg-mist-50 hover:text-ink-950;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-transparent bg-transparent px-3 py-2 text-[0.875rem] font-medium leading-5 text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-[0.98];
   }
 
   .ui-button-action {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-none border border-accent-500/60 bg-white px-3.5 py-1.5 text-[0.875rem] font-medium leading-5 text-accent-700 transition hover:border-accent-600 hover:bg-accent-100;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-accent-500/60 bg-panel px-3.5 py-2 text-[0.875rem] font-medium leading-5 text-accent-700 transition hover:border-accent-600 hover:bg-accent-100 active:scale-[0.98];
   }
 
   .ui-button-danger-soft {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-none border border-danger-500/60 bg-white px-3.5 py-1.5 text-[0.875rem] font-medium leading-5 text-danger-500 transition hover:border-danger-500 hover:bg-danger-100;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-danger-500/60 bg-panel px-3.5 py-2 text-[0.875rem] font-medium leading-5 text-danger-500 transition hover:border-danger-500 hover:bg-danger-100 active:scale-[0.98];
   }
 }

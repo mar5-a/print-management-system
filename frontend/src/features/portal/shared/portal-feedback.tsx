@@ -3,26 +3,26 @@ import { CheckCircle2, AlertTriangle, Info, LoaderCircle, X } from 'lucide-react
 
 const toneConfig = {
   success: {
-    border: 'border-l-green-600',
-    bg: 'bg-green-50',
+    border: 'border-l-accent-600',
+    bg: 'bg-accent-100/40',
     icon: CheckCircle2,
-    iconClass: 'text-green-600',
+    iconClass: 'text-accent-700',
   },
   error: {
     border: 'border-l-danger-500',
-    bg: 'bg-danger-50',
+    bg: 'bg-danger-100/40',
     icon: AlertTriangle,
     iconClass: 'text-danger-500',
   },
   info: {
-    border: 'border-l-blue-600',
-    bg: 'bg-blue-50',
+    border: 'border-l-cyan-600',
+    bg: 'bg-cyan-100/40',
     icon: Info,
-    iconClass: 'text-blue-600',
+    iconClass: 'text-cyan-700',
   },
   loading: {
     border: 'border-l-amber-600',
-    bg: 'bg-amber-50',
+    bg: 'bg-amber-100/40',
     icon: LoaderCircle,
     iconClass: 'text-amber-600',
   },
@@ -100,4 +100,3 @@ export function PortalProgressPanel({
     </div>
   )
 }
-

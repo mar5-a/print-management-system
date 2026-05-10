@@ -18,10 +18,10 @@ export function StatusRow({ icon, label, value, tone = 'default' }: StatusRowPro
           : 'text-slate-500'
 
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-line py-3 last:border-b-0">
-      <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center justify-between gap-3 border-b border-line/80 py-2.5 last:border-b-0">
+      <div className="flex min-w-0 items-center gap-2.5 text-sm">
         <span className={toneClass}>{icon}</span>
-        <span className="text-slate-600">{label}</span>
+        <span className="truncate text-slate-600">{label}</span>
       </div>
       <span className="text-sm font-medium text-ink-950">{value}</span>
     </div>

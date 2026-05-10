@@ -124,7 +124,7 @@ export function PortalDashboardScreen() {
                 <div>{profile.quotaUsed}/{profile.quotaTotal}</div>
               </div>
             </div>
-            <div className="mt-4 h-2 bg-slate-100">
+            <div className="mt-4 h-2 bg-muted">
               <div className="h-full bg-accent-700" style={{ width: `${quotaPercent}%` }} />
             </div>
             <div className="mt-3 text-sm text-slate-500">Held files clear after {profile.retentionHours} hours.</div>
@@ -144,15 +144,15 @@ export function PortalDashboardScreen() {
             <div className="text-base font-semibold text-ink-950">Usage this week</div>
           </div>
           <div className="px-4 py-4">
-            <div className="rounded-none border border-line bg-white p-4">
+            <div className="rounded-lg border border-line bg-panel p-4">
               <svg viewBox="0 0 440 140" className="h-44 w-full">
                 {[0, 1, 2, 3].map((row) => (
-                  <line key={row} x1="0" x2="440" y1={20 + row * 30} y2={20 + row * 30} stroke="#e7edf3" />
+                  <line key={row} x1="0" x2="440" y1={20 + row * 30} y2={20 + row * 30} style={{ stroke: 'var(--color-line)' }} />
                 ))}
-                <polyline fill="none" points={linePoints} transform="translate(0 10)" stroke="#0f7a4b" strokeWidth="3" />
+                <polyline fill="none" points={linePoints} transform="translate(0 10)" stroke="var(--color-accent-600)" strokeWidth="3" />
                 {linePoints.split(' ').map((point, index) => {
                   const [x, y] = point.split(',').map(Number)
-                  return <circle key={`${point}-${index}`} cx={x} cy={y + 10} r="3.5" fill="#0f7a4b" />
+                  return <circle key={`${point}-${index}`} cx={x} cy={y + 10} r="3.5" fill="var(--color-accent-600)" />
                 })}
               </svg>
               <div className="mt-3 grid grid-cols-7 text-center font-mono text-[0.68rem] uppercase tracking-[0.08em] text-slate-500">

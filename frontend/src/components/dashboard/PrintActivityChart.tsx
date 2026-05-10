@@ -9,10 +9,10 @@ const refreshIntervalMs = 60_000
 const chartWidth = 840
 const chartHeight = 320
 const chartPadding = {
-  top: 22,
+  top: 20,
   right: 22,
-  bottom: 58,
-  left: 58,
+  bottom: 48,
+  left: 54,
 }
 
 export function PrintActivityChart() {
@@ -60,29 +60,32 @@ export function PrintActivityChart() {
 
   return (
     <section className="ui-panel overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b border-line bg-mist-50/80 px-5 py-4">
-        <div className="text-base font-semibold text-ink-950">Print activity</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-info-100/65 px-4 py-3.5">
+        <div>
+          <div className="text-base font-semibold text-ink-950">Print activity</div>
+          <div className="mt-1 text-xs text-slate-500">{activity ? `${activity.totalPages.toLocaleString()} pages in selected range` : 'Pages submitted by period'}</div>
+        </div>
 
-        <div className="flex border border-line bg-white p-0.5">
+        <div className="flex rounded-xl border border-line bg-panel p-0.5">
           <RangeButton active={range === 'week'} onClick={() => setRange('week')}>
-            Last 7 days
+            Week
           </RangeButton>
           <RangeButton active={range === 'month'} onClick={() => setRange('month')}>
-            Last 30 days
+            Month
           </RangeButton>
         </div>
       </div>
 
-      <div className="px-5 py-5">
-        <div className="rounded-none border border-line bg-white p-4">
+      <div className="px-4 py-4">
+        <div className="rounded-xl border border-line bg-panel p-3.5">
           {error ? (
-            <div className="flex h-[21rem] items-center justify-center text-sm text-danger-500">{error}</div>
+            <div className="flex h-[19rem] items-center justify-center text-sm text-danger-500">{error}</div>
           ) : isLoading && !activity ? (
-            <div className="flex h-[21rem] items-center justify-center text-sm text-slate-500">
+            <div className="flex h-[19rem] items-center justify-center text-sm text-slate-500">
               Loading print activity...
             </div>
           ) : (
-            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[21rem] w-full" role="img">
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[19rem] w-full" role="img">
               <title>Printed pages over the selected date range</title>
 
               {chart.yTicks.map((tick) => (
@@ -92,13 +95,13 @@ export function PrintActivityChart() {
                     x2={chartWidth - chartPadding.right}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke="#e7edf3"
+                    style={{ stroke: 'var(--color-line)' }}
                   />
                   <text
-                    x={chartPadding.left - 12}
+                    x={chartPadding.left - 10}
                     y={tick.y + 4}
                     textAnchor="end"
-                    className="fill-slate-500 font-mono text-[0.68rem]"
+                    className="fill-slate-500 font-mono text-[0.65rem]"
                   >
                     {tick.value}
                   </text>
@@ -110,42 +113,41 @@ export function PrintActivityChart() {
                 x2={chartPadding.left}
                 y1={chartPadding.top}
                 y2={chartHeight - chartPadding.bottom}
-                stroke="#dbe6ef"
+                style={{ stroke: 'var(--color-line)' }}
               />
               <line
                 x1={chartPadding.left}
                 x2={chartWidth - chartPadding.right}
                 y1={chartHeight - chartPadding.bottom}
                 y2={chartHeight - chartPadding.bottom}
-                stroke="#dbe6ef"
+                style={{ stroke: 'var(--color-line)' }}
               />
 
-              <polyline fill="none" points={chart.polylinePoints} stroke="#43a047" strokeWidth="3" />
+              <path d={chart.areaPath} fill="url(#activityAreaGradient)" opacity="0.8" />
+              <polyline fill="none" points={chart.polylinePoints} stroke="var(--color-accent-600)" strokeWidth="3" />
 
               {chart.points.map((point) => (
-                <circle key={point.key} cx={point.x} cy={point.y} r="3.5" fill="#43a047" />
+                <circle key={point.key} cx={point.x} cy={point.y} r="3.4" fill="var(--color-accent-600)" />
               ))}
 
               {chart.xLabels.map((label) => (
                 <text
                   key={label.key}
                   x={label.x}
-                  y={chartHeight - 20}
+                  y={chartHeight - 14}
                   textAnchor="middle"
-                  className="fill-slate-500 font-mono text-[0.68rem]"
+                  className="fill-slate-500 font-mono text-[0.65rem]"
                 >
                   {label.text}
                 </text>
               ))}
 
-              <text
-                x="16"
-                y={chartPadding.top + 8}
-                textAnchor="start"
-                className="fill-slate-500 font-mono text-[0.68rem] uppercase"
-              >
-                Pages
-              </text>
+              <defs>
+                <linearGradient id="activityAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-accent-500)" stopOpacity="0.34" />
+                  <stop offset="100%" stopColor="var(--color-accent-500)" stopOpacity="0.05" />
+                </linearGradient>
+              </defs>
             </svg>
           )}
         </div>
@@ -167,8 +169,8 @@ function RangeButton({
     <button
       className={
         active
-          ? 'bg-accent-600 px-3 py-1.5 text-sm font-medium text-white'
-          : 'px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-mist-50'
+          ? 'rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white'
+          : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-mist-50'
       }
       type="button"
       onClick={onClick}
@@ -198,9 +200,20 @@ function buildChart(activity: PrintActivitySnapshot | null) {
     }
   })
 
+  const areaPath =
+    chartPoints.length > 0
+      ? [
+          `M ${chartPoints[0].x} ${chartHeight - chartPadding.bottom}`,
+          ...chartPoints.map((point) => `L ${point.x} ${point.y}`),
+          `L ${chartPoints[chartPoints.length - 1].x} ${chartHeight - chartPadding.bottom}`,
+          'Z',
+        ].join(' ')
+      : ''
+
   return {
     points: chartPoints,
     polylinePoints: chartPoints.map((point) => `${point.x},${point.y}`).join(' '),
+    areaPath,
     xLabels: chartPoints
       .filter((_, index) => shouldShowDateLabel(index, chartPoints.length, activity?.range ?? 'week'))
       .map((point) => ({

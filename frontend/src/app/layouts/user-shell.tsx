@@ -1,18 +1,11 @@
-import { motion } from 'framer-motion'
-import {
-  ChevronRight,
-  FileClock,
-  LayoutDashboard,
-  LogOut,
-  Printer,
-  Upload,
-} from 'lucide-react'
-import { NavLink, useNavigate, useOutlet } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { FileClock, LayoutDashboard, Upload } from 'lucide-react'
+import { useNavigate, useOutlet } from 'react-router-dom'
+import { AppShell, type AppShellNavItem } from '@/components/ui/app-shell'
+import type { ProfilePanelUserData } from '@/components/ui/profile-panel'
 import { getCurrentPortalUserProfile } from '@/features/portal/session/api'
 import { logout } from '@/lib/auth'
 
-const portalNavItems = [
+const navItems: AppShellNavItem[] = [
   { label: 'Dashboard', href: '/portal/dashboard', icon: LayoutDashboard },
   { label: 'Submit Job', href: '/portal/submit-job', icon: Upload },
   { label: 'History', href: '/portal/history', icon: FileClock },
@@ -21,7 +14,7 @@ const portalNavItems = [
 export function UserShell() {
   const navigate = useNavigate()
   const outlet = useOutlet()
-  const portalUserProfile = getCurrentPortalUserProfile()
+  const profile = getCurrentPortalUserProfile()
 
   const handleLogout = () => {
     const confirmed = window.confirm('Are you sure you want to log out?')
@@ -33,78 +26,37 @@ export function UserShell() {
     navigate('/sign-in', { replace: true })
   }
 
+  const quotaPercent =
+    profile.quotaTotal > 0 ? Math.min(100, Math.round((profile.quotaUsed / profile.quotaTotal) * 100)) : 0
+
+  const profileData: ProfilePanelUserData = {
+    displayName: profile.displayName,
+    username: profile.username,
+    email: '',
+    role: profile.role,
+    department: profile.department,
+    quotaUsed: profile.quotaUsed,
+    quotaTotal: profile.quotaTotal,
+  }
+
   return (
-    <div className="min-h-screen bg-transparent text-ink-950 lg:h-screen lg:overflow-hidden">
-      <div className="h-9 border-b border-accent-600/20 bg-accent-700 text-[0.78rem] text-white">
-        <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3 font-medium">
-            <Printer className="size-3.5" />
-            <span>Print Portal</span>
-          </div>
-          <div className="flex items-center gap-3 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/75">
-            <span>{portalUserProfile.department}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid min-h-[calc(100vh-2.25rem)] max-w-[1600px] grid-cols-1 lg:h-[calc(100vh-2.25rem)] lg:min-h-0 lg:grid-cols-[232px_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="flex min-h-0 flex-col border-b border-line/70 bg-[#111827] px-4 py-4 backdrop-blur lg:h-full lg:border-r lg:border-b-0">
-          <div className="shrink-0 border-b border-slate-700 pb-4">
-            <div className="ui-kicker text-slate-300">Your Portal</div>
-            <div className="mt-1.5 text-xl font-semibold tracking-tight text-white">Print Portal</div>
-            <p className="mt-1 text-sm text-slate-400">Student printing</p>
-          </div>
-
-          <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-            {portalNavItems.map((item) => (
-              <NavLink
-                key={item.href}
-                to={item.href}
-                className={({ isActive }) =>
-                  cn(
-                    'relative flex items-center gap-3 overflow-hidden border px-3 py-2.5 text-sm font-medium transition',
-                    isActive
-                      ? 'border-ink-950 bg-ink-950 text-white'
-                      : 'border-transparent text-slate-300 hover:border-line hover:bg-slate-700 hover:text-white',
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {isActive ? (
-                      <motion.div
-                        layoutId="active-portal-pill"
-                        className="absolute inset-y-0 left-0 w-1 bg-accent-500"
-                      />
-                    ) : null}
-                    <item.icon className="relative size-4" />
-                    <span className="relative">{item.label}</span>
-                    <ChevronRight className="relative ml-auto size-4 opacity-50" />
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="mt-4 shrink-0 border-t border-slate-700 pt-4">
-            <div className="ui-kicker text-slate-300">Signed in</div>
-            <div className="mt-2 text-sm">
-              <div className="font-semibold text-white">{portalUserProfile.displayName}</div>
-              <div className="text-slate-400">{portalUserProfile.role} · {portalUserProfile.department}</div>
-            </div>
-            <button className="ui-button-secondary mt-4 w-full" onClick={handleLogout}>
-              <LogOut className="size-4" />
-              Log Out
-            </button>
-          </div>
-        </aside>
-
-        <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
-          <main className="px-4 py-5 sm:px-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
-            <div>{outlet}</div>
-          </main>
-        </div>
-      </div>
-    </div>
+    <AppShell
+      appTitle="Print Management System"
+      appSubtitle="Portal"
+      sidebarTitle="Print Portal"
+      sidebarSubtitle="Submit, hold, and release jobs"
+      navItems={navItems}
+      statusItems={[
+        { label: 'Quota used', value: `${profile.quotaUsed}/${profile.quotaTotal}`, tone: quotaPercent > 85 ? 'warn' : 'info' },
+        { label: 'Session', value: 'Local', tone: 'neutral' },
+      ]}
+      accountName={profile.displayName}
+      accountMeta={`${profile.role} · ${profile.department}`}
+      onLogout={handleLogout}
+      maxWidthClassName="max-w-[1640px]"
+      profileData={profileData}
+    >
+      {outlet}
+    </AppShell>
   )
 }

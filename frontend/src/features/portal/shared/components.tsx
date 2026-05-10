@@ -45,8 +45,8 @@ export function PortalQueueCard({
         selected
           ? 'border-ink-950 bg-ink-950 text-white'
           : queue.available
-            ? 'border-line bg-white hover:border-slate-300 hover:bg-mist-50'
-            : 'border-line bg-slate-100/60 text-slate-500'
+            ? 'border-line bg-panel hover:border-slate-300 hover:bg-mist-50'
+            : 'border-line bg-muted/60 text-slate-500'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -62,7 +62,7 @@ export function PortalQueueCard({
               ? selected
                 ? 'bg-white/15 text-white'
                 : 'bg-accent-100 text-accent-700'
-              : 'bg-white text-slate-500'
+              : 'bg-panel text-slate-500'
           }
         >
           {queue.access}

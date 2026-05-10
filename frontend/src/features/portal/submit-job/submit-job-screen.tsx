@@ -358,15 +358,15 @@ export function PortalSubmitJobScreen() {
               <div className="border-b border-line bg-mist-50/80 px-4 py-3">
                 <div className="text-base font-semibold text-ink-950">Preview</div>
               </div>
-              <div className="bg-white">
-                <div className="flex items-center justify-center border-b border-line bg-slate-100/60 px-4 py-3" style={{ height: 260 }}>
+              <div className="bg-panel">
+                <div className="flex items-center justify-center border-b border-line bg-muted/70 px-4 py-3" style={{ height: 260 }}>
                   {renderingPage ? (
                     <div className="text-sm text-slate-400">Rendering...</div>
                   ) : (
                     <img
                       src={previewUrl}
                       alt={`Page ${previewPage}`}
-                      className="max-h-full max-w-full border border-slate-200 bg-white object-contain shadow-sm"
+                      className="max-h-full max-w-full border border-line bg-panel object-contain shadow-sm"
                     />
                   )}
                 </div>
@@ -374,7 +374,7 @@ export function PortalSubmitJobScreen() {
                   <div className="flex items-center justify-between border-b border-line px-2 py-1.5">
                     <button
                       type="button"
-                      className="flex size-7 items-center justify-center rounded-sm text-slate-500 transition hover:bg-slate-100 hover:text-ink-950 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                      className="flex size-7 items-center justify-center rounded-sm text-slate-500 transition hover:bg-muted hover:text-ink-950 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                       disabled={previewPage <= 1 || renderingPage}
                       onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
                     >
@@ -385,7 +385,7 @@ export function PortalSubmitJobScreen() {
                     </span>
                     <button
                       type="button"
-                      className="flex size-7 items-center justify-center rounded-sm text-slate-500 transition hover:bg-slate-100 hover:text-ink-950 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                      className="flex size-7 items-center justify-center rounded-sm text-slate-500 transition hover:bg-muted hover:text-ink-950 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                       disabled={previewPage >= totalPages || renderingPage}
                       onClick={() => setPreviewPage((p) => Math.min(totalPages, p + 1))}
                     >
@@ -415,7 +415,7 @@ export function PortalSubmitJobScreen() {
                 <Info className="mt-0.5 size-4 text-accent-700" />
                 <span>Resolved by policy. Queue selection is not available in the portal.</span>
               </div>
-              <div className={`border px-3 py-3 ${defaultQueue?.available ? 'border-line bg-white' : 'border-danger-200 bg-danger-50/60'}`}>
+              <div className={`border px-3 py-3 ${defaultQueue?.available ? 'border-line bg-panel' : 'border-danger-200 bg-danger-100/40'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-ink-950">{defaultQueue?.name ?? 'No assigned route'}</div>
@@ -460,7 +460,7 @@ export function PortalSubmitJobScreen() {
             <div className="border-b border-line bg-mist-50/80 px-4 py-3"><div className="text-base font-semibold text-ink-950">Quota</div></div>
             <div className="px-4 py-4">
               <div className="text-2xl font-semibold tracking-normal text-ink-950">{profile?.quotaUsed}/{profile?.quotaTotal}</div>
-              <div className="mt-4 h-2 bg-slate-100"><div className="h-full bg-accent-700" style={{ width: `${profile ? (profile.quotaUsed / profile.quotaTotal) * 100 : 0}%` }} /></div>
+              <div className="mt-4 h-2 bg-muted"><div className="h-full bg-accent-700" style={{ width: `${profile ? (profile.quotaUsed / profile.quotaTotal) * 100 : 0}%` }} /></div>
               <div className="mt-3 text-sm text-slate-500">{quotaRemaining} pages currently available.</div>
             </div>
           </section>

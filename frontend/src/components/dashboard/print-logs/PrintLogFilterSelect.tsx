@@ -20,7 +20,7 @@ export function PrintLogFilterSelect({
     <div className="relative">
       <select
         aria-label={ariaLabel}
-        className="h-10 w-full appearance-none border border-line bg-white px-3 pr-10 text-sm text-slate-600 outline-none transition focus:border-accent-500 focus:ring-2 focus:ring-accent-500/10"
+        className="h-10 w-full appearance-none rounded-xl border border-line bg-panel px-3 pr-10 text-sm text-slate-600 outline-none transition focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20"
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
       >

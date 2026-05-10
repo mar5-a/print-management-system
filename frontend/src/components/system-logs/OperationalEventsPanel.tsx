@@ -99,7 +99,7 @@ export function OperationalEventsPanel({ range, resetKey }: OperationalEventsPan
 
   return (
     <section className="ui-panel mt-5 overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b border-line bg-white px-5 py-4">
+      <div className="flex items-center justify-between gap-4 border-b border-line bg-mist-50/80 px-5 py-4">
         <div className="text-base font-semibold text-ink-950">Operational events</div>
       </div>
       <div className="px-5 py-4">
